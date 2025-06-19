@@ -1,8 +1,16 @@
-# Cấu hình build cho Netlify
 [build]
-  # Thư mục chứa các Netlify Functions
-  functions = "netlify/functions/"
+  # Thư mục chứa các file HTML, CSS, JS của bạn để Netlify hiển thị
+  publish = "public"
+  # Thư mục chứa các Netlify Functions của bạn
+  functions = "netlify/functions"
 
-# Plugin để tự động cài đặt dependencies cho các functions
-[[plugins]]
-  package = "@netlify/plugin-functions-install-core"
+# Chuyển hướng các yêu cầu API đến functions
+[[redirects]]
+  from = "/api/chat"
+  to = "/.netlify/functions/chat"
+  status = 200
+
+[[redirects]]
+  from = "/api/search"
+  to = "/.netlify/functions/search-and-summarize"
+  status = 200
