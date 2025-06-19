@@ -1,20 +1,29 @@
-// gemini.js - PHIÊN BẢN GỠ LỖI
+// gemini.js - PHIÊN BẢN SỬA LỖI STATUS CODE 0
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
-exports.handler = async function (event, context) {
+exports.handler = async function (event) {
+    // Chỉ cho phép phương thức POST
     if (event.httpMethod !== 'POST') {
-        return { statusCode: 405, body: 'Method Not Allowed' };
+        return {
+            statusCode: 405,
+            body: 'Method Not Allowed',
+        };
     }
+
     try {
-        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const { prompt, history = [] } = JSON.parse(event.body);
 
-        if (!prompt) { throw new Error("Prompt is missing from the request body."); }
+        if (!prompt) {
+            return { statusCode: 400, body: 'Prompt is required.' };
+        }
 
+        const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-        const chat = model.startChat({ history: history });
+        const chat = model.startChat({ history });
+
         const result = await chat.sendMessageStream(prompt);
 
+        // Tạo một ReadableStream để gửi lại cho client
         const stream = new ReadableStream({
             async start(controller) {
                 for await (const chunk of result.stream) {
@@ -23,14 +32,29 @@ exports.handler = async function (event, context) {
                 controller.close();
             }
         });
-        return new Response(stream, { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" } });
+        
+        // Trả về một đối tượng Response hợp lệ cho streaming
+        // Cách này hoạt động tốt hơn trong môi trường Netlify
+        return {
+            statusCode: 200,
+            headers: {
+                "Content-Type": "text/plain; charset=utf-8",
+            },
+            body: stream,
+            isBase64Encoded: false,
+        };
+
     } catch (error) {
-        // QUAN TRỌNG: Gửi thông tin lỗi chi tiết về cho frontend
-        console.error("!!! LOI BEN TRONG FUNCTION !!!", error);
-        const errorBody = `Error Name: ${error.name}\nMessage: ${error.message}\nStack: ${error.stack}`;
+        console.error("LOI TRONG FUNCTION:", error);
         return {
             statusCode: 500,
-            body: errorBody
+            body: JSON.stringify({
+                message: "An error occurred inside the Gemini function.",
+                error: {
+                    name: error.name,
+                    message: error.message,
+                }
+            }),
         };
     }
 };
