@@ -1,55 +1,70 @@
 <!DOCTYPE html>
-<html lang="vi" data-theme="light"> <!-- Thêm data-theme để quản lý chế độ sáng/tối -->
+<html lang="vi">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GemBot AI Pro - Trợ lý Đa phương tiện</title>
+    <title> Nhựt Chatbot</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-    <!-- Thêm thư viện icon (Feather Icons) -->
-    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 <body>
-    <div class="chat-container">
-        <div class="chat-header">
-            <div class="header-left">
-                <h1>GemBot AI Pro</h1>
-                <p>Powered by Gemini 1.5 Flash</p>
+    <div id="app-container">
+        <!-- Bảng Lịch sử Trò chuyện (có thể thu gọn) -->
+        <div id="history-panel">
+            <div class="panel-header">
+                <h3>Lịch sử</h3>
+                <button id="toggle-history-btn" title="Thu gọn/Mở rộng"><i class="fa-solid fa-chevron-left"></i></button>
             </div>
-            <div class="header-right">
-                <button id="new-chat-btn" class="icon-btn" title="Cuộc trò chuyện mới"><i data-feather="plus-circle"></i></button>
-                <button id="theme-toggle-btn" class="icon-btn" title="Chuyển chế độ Sáng/Tối"><i data-feather="moon"></i></button>
+            <button id="new-chat-btn"><i class="fa-solid fa-plus"></i> Trò chuyện mới</button>
+            <div id="history-list">
+                <!-- Lịch sử sẽ được thêm vào đây bằng JS -->
             </div>
         </div>
-        <div class="chat-box" id="chat-box">
-            <div class="message bot-message">
-                <img src="https://ssl.gstatic.com/chat/ui/v1/bot_avatar_42.svg" alt="bot avatar" class="avatar">
-                <div class="message-content">
-                    <p>Chào bạn! Tôi là GemBot Pro. Bạn có thể hỏi tôi hoặc tải ảnh lên để tôi phân tích.</p>
+
+        <!-- Khung Chat chính -->
+        <div id="chat-container">
+            <header id="chat-header">
+                <h2>Gemini 1.5 Flash</h2>
+                <div>
+                    <label for="tts-toggle" class="tts-label">Đọc câu trả lời:</label>
+                    <input type="checkbox" id="tts-toggle" checked>
+                </div>
+            </header>
+            <div id="chat-box">
+                <!-- Tin nhắn sẽ hiển thị ở đây -->
+                <div class="message bot">Chào bạn! Tôi có thể giúp gì cho bạn hôm nay? Bạn có thể hỏi tôi, gửi ảnh, hoặc yêu cầu tìm kiếm trên web.</div>
+            </div>
+            <div id="loading-indicator" class="hidden">
+                <div class="spinner"></div>
+            </div>
+            
+            <!-- Vùng xem trước ảnh và video -->
+            <div id="media-preview-area" class="hidden">
+                <div id="image-preview-container">
+                    <img id="image-preview" src="" alt="Image preview">
+                    <button id="remove-image-btn">×</button>
+                </div>
+                <div id="video-feed-container" class="hidden">
+                    <video id="video-feed" autoplay playsinline></video>
+                    <button id="capture-btn">Chụp ảnh</button>
+                    <button id="cancel-camera-btn">Hủy</button>
                 </div>
             </div>
-        </div>
-        <div class="loading-indicator" id="loading-indicator">
-            <img src="https://ssl.gstatic.com/chat/ui/v1/bot_avatar_42.svg" alt="bot avatar" class="avatar">
-            <div class="typing-dots"><span></span><span></span><span></span></div>
-        </div>
-        <form class="chat-input-form" id="chat-form">
-            <label for="file-input" class="icon-btn" title="Tải ảnh lên">
-                <i data-feather="paperclip"></i>
-            </label>
-            <input type="file" id="file-input" accept="image/*" style="display: none;">
-            <div class="input-container">
-                <textarea id="user-input" placeholder="Nhập câu hỏi hoặc mô tả ảnh..." rows="1"></textarea>
-                <div id="image-preview-container"></div>
+            
+            <div id="chat-input-area">
+                <button id="camera-btn" title="Gửi ảnh"><i class="fa-solid fa-camera"></i></button>
+                <button id="mic-btn" title="Nói chuyện"><i class="fa-solid fa-microphone"></i></button>
+                <textarea id="user-input" placeholder="Nhập tin nhắn hoặc sử dụng mic..." rows="1"></textarea>
+                <button id="send-btn" title="Gửi"><i class="fa-solid fa-paper-plane"></i></button>
+                <button id="web-search-btn" title="Tìm kiếm trên Web"><i class="fa-solid fa-globe"></i></button>
             </div>
-            <button type="submit" id="send-btn" class="icon-btn" title="Gửi">
-                <i data-feather="send"></i>
-            </button>
-        </form>
+        </div>
     </div>
 
+    <!-- Canvas ẩn để xử lý ảnh chụp từ camera -->
+    <canvas id="canvas" class="hidden"></canvas>
+
+    <!-- Thư viện để render Markdown -->
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="script.js"></script>
 </body>
