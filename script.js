@@ -163,14 +163,17 @@ document.addEventListener('DOMContentLoaded', () => {
         userInput.value = '';
         userInput.style.height = 'auto'; // Reset height
         
-        let endpoint = '/chat';
+        // =========================================================
+        // === ĐÂY LÀ PHẦN THAY ĐỔI QUAN TRỌNG CHO NETLIFY ===
+        // =========================================================
+        let endpoint = '/api/chat'; // Đường dẫn tương đối cho Netlify Functions
         let body;
         
         if (isSearchMode) {
-            endpoint = '/search-and-summarize';
+            endpoint = '/api/search'; // Đường dẫn tương đối cho Netlify Functions
             body = { query: prompt };
-            isSearchMode = false; // Reset sau khi gửi
-            webSearchBtn.classList.remove('active'); // Ví dụ: đổi style
+            isSearchMode = false; 
+            userInput.placeholder = "Nhập tin nhắn hoặc sử dụng mic...";
         } else {
             body = {
                 history: conversationHistory,
@@ -180,16 +183,22 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         try {
-            const response = await fetch(`http://localhost:3000${endpoint}`, {
+            // Sử dụng đường dẫn endpoint tương đối đã được định nghĩa ở trên
+            const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(body)
             });
+            // =========================================================
+            // === KẾT THÚC PHẦN THAY ĐỔI ===
+            // =========================================================
 
             if (!response.ok) {
-                throw new Error(`Lỗi HTTP: ${response.status}`);
+                // Thử đọc lỗi từ server nếu có
+                const errorData = await response.json().catch(() => null);
+                throw new Error(`Lỗi HTTP: ${response.status}. ${errorData?.error || ''}`);
             }
 
             const data = await response.json();
@@ -199,8 +208,8 @@ document.addEventListener('DOMContentLoaded', () => {
             appendMessage(botResponse, 'bot', sources);
             speak(botResponse.replace(/`/g, '').replace(/\*/g, '')); // Đọc câu trả lời, loại bỏ ký tự markdown
 
-            // Cập nhật lịch sử
-            if (!isSearchMode) {
+            // Cập nhật lịch sử chỉ cho chế độ chat bình thường
+            if (endpoint === '/api/chat') {
                 conversationHistory.push({ role: 'user', parts: [{text: prompt}] });
                 conversationHistory.push({ role: 'model', parts: [{text: botResponse}] });
             }
@@ -245,10 +254,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     webSearchBtn.addEventListener('click', () => {
         isSearchMode = true;
-        // Thêm hiệu ứng UI để người dùng biết đang ở chế độ tìm kiếm
         userInput.placeholder = "Nhập chủ đề bạn muốn tìm kiếm và tóm tắt...";
         userInput.focus();
-        // Bạn có thể thêm class để đổi màu nút
+        // Bạn có thể thêm class để đổi màu nút, ví dụ:
         // webSearchBtn.classList.add('active'); 
     });
 
@@ -258,11 +266,11 @@ document.addEventListener('DOMContentLoaded', () => {
         removeImage();
         isSearchMode = false;
         userInput.placeholder = "Nhập tin nhắn hoặc sử dụng mic...";
+        // webSearchBtn.classList.remove('active');
     });
 
     toggleHistoryBtn.addEventListener('click', () => {
         historyPanel.classList.toggle('collapsed');
-        // Thêm logic để thay đổi icon nếu muốn
         const icon = toggleHistoryBtn.querySelector('i');
         if (historyPanel.classList.contains('collapsed')) {
             icon.classList.remove('fa-chevron-left');
