@@ -1,8 +1,7 @@
 {
-  "name": "gemini-function",
+  "name": "gemini-chatbot-functions",
   "version": "1.0.0",
-  "description": "Netlify function for Gemini AI",
-  "main": "gemini.js",
+  "description": "Netlify Functions for the Gemini Chatbot",
   "dependencies": {
     "@google/generative-ai": "^0.11.0"
   }
