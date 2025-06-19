@@ -1,3 +1,4 @@
+// script.js - PHIÊN BẢN SỬA LỖI XỬ LÝ STREAM
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
     const chatForm = document.getElementById('chat-form');
@@ -11,19 +12,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- State ---
     let conversationHistory = [];
-    let currentImage = null; // To hold the Base64 image string
+    let currentImage = null;
 
     // --- Utility Functions ---
-    // Function to convert file to Base64
     const fileToGenerativePart = async (file) => {
         const base64EncodedDataPromise = new Promise((resolve) => {
             const reader = new FileReader();
             reader.onloadend = () => resolve(reader.result.split(',')[1]);
             reader.readAsDataURL(file);
         });
-        return {
-            inlineData: { data: await base64EncodedDataPromise, mimeType: file.type },
-        };
+        return { inlineData: { data: await base64EncodedDataPromise, mimeType: file.type } };
     };
 
     // --- Theme Management ---
@@ -34,51 +32,28 @@ document.addEventListener('DOMContentLoaded', () => {
         themeToggleBtn.innerHTML = `<i data-feather="${icon}"></i>`;
         feather.replace();
     };
-
     themeToggleBtn.addEventListener('click', () => {
         const newTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
         applyTheme(newTheme);
     });
-
-    // Load saved theme
     const savedTheme = localStorage.getItem('theme') || 'light';
     applyTheme(savedTheme);
 
-
     // --- Chat Functions ---
-    const addMessageToChatBox = (message, sender, isStreaming = false) => {
-        let messageElement = document.createElement('div');
+    const addMessageToChatBox = (message, sender) => {
+        const messageElement = document.createElement('div');
         messageElement.classList.add('message', `${sender}-message`);
-
         const avatarSrc = sender === 'bot' ? 'https://ssl.gstatic.com/chat/ui/v1/bot_avatar_42.svg' : 'https://i.pravatar.cc/40?u=user';
         
-        // Use marked.js to parse Markdown content
-        const parsedMessage = marked.parse(message);
-
         messageElement.innerHTML = `
             <img src="${avatarSrc}" alt="${sender} avatar" class="avatar">
             <div class="message-content">
-                ${parsedMessage}
-                ${sender === 'bot' ? `
-                    <div class="message-actions">
-                        <button class="copy-btn" title="Sao chép"><i data-feather="copy"></i></button>
-                    </div>` : ''}
+                ${marked.parse(message)}
+                ${sender === 'bot' ? `<div class="message-actions"><button class="copy-btn" title="Sao chép"><i data-feather="copy"></i></button></div>` : ''}
             </div>
         `;
-
-        if (isStreaming) {
-            const lastBotMessage = chatBox.querySelector('.bot-message:last-child .message-content');
-            if (lastBotMessage) {
-                lastBotMessage.innerHTML = parsedMessage;
-                messageElement = lastBotMessage.parentElement; // Don't create new element
-            } else {
-                 chatBox.appendChild(messageElement);
-            }
-        } else {
-             chatBox.appendChild(messageElement);
-        }
-
-        feather.replace(); // To render icons on new messages
+        chatBox.appendChild(messageElement);
+        feather.replace();
         chatBox.scrollTop = chatBox.scrollHeight;
         return messageElement;
     };
@@ -90,12 +65,10 @@ document.addEventListener('DOMContentLoaded', () => {
         imagePreviewContainer.innerHTML = '';
         addMessageToChatBox("Chào bạn! Tôi là GemBot Pro. Bạn có thể hỏi tôi hoặc tải ảnh lên để tôi phân tích.", 'bot');
     };
-
     newChatBtn.addEventListener('click', startNewChat);
 
     // --- Form & Input Handling ---
     userInput.addEventListener('input', () => {
-        // Auto-resize textarea
         userInput.style.height = 'auto';
         userInput.style.height = (userInput.scrollHeight) + 'px';
     });
@@ -104,96 +77,79 @@ document.addEventListener('DOMContentLoaded', () => {
         const file = e.target.files[0];
         if (file) {
             currentImage = await fileToGenerativePart(file);
-            imagePreviewContainer.innerHTML = `
-                <img src="${URL.createObjectURL(file)}" alt="Image preview">
-                <button class="remove-img-btn">×</button>
-            `;
+            imagePreviewContainer.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="Image preview"><button class="remove-img-btn">×</button>`;
             imagePreviewContainer.querySelector('.remove-img-btn').addEventListener('click', () => {
                 currentImage = null;
                 imagePreviewContainer.innerHTML = '';
-                fileInput.value = ''; // Reset file input
+                fileInput.value = '';
             });
         }
     });
 
+    // --- MAIN LOGIC ---
     chatForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const userMessage = userInput.value.trim();
         if (!userMessage && !currentImage) return;
 
-        // Display user message
-        let userPrompt = userMessage;
-        if (currentImage) {
-            // Add a placeholder in the UI if there's an image but no text
-            addMessageToChatBox(userPrompt || "[Phân tích ảnh]", 'user');
-        } else {
-            addMessageToChatBox(userPrompt, 'user');
-        }
-        
+        addMessageToChatBox(userMessage || "[Phân tích ảnh]", 'user');
         userInput.value = '';
         userInput.style.height = 'auto';
-        imagePreviewContainer.innerHTML = ''; // Clear preview
+        imagePreviewContainer.innerHTML = '';
         loadingIndicator.style.display = 'flex';
         chatBox.scrollTop = chatBox.scrollHeight;
 
-        // --- API Call with Streaming ---
         try {
-            const promptParts = [userPrompt];
+            const promptParts = [userMessage];
             if (currentImage) {
                 promptParts.unshift(currentImage);
-                // Reset for next turn
-                currentImage = null; 
             }
             
-            // Call Netlify Function
             const response = await fetch('/.netlify/functions/gemini', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    prompt: promptParts,
-                    history: conversationHistory
-                }),
+                body: JSON.stringify({ prompt: promptParts, history: conversationHistory })
             });
-
-            if (!response.ok) {
-                throw new Error(`Server error: ${response.statusText}`);
-            }
 
             loadingIndicator.style.display = 'none';
 
-            // Handle streaming response
+            if (!response.ok) {
+                // Lấy thông báo lỗi từ body nếu có
+                const errorData = await response.json();
+                throw new Error(errorData.details || `Server error: ${response.statusText}`);
+            }
+
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let fullBotMessage = "";
-            let botMessageElement = null;
+            let botMessageElement = addMessageToChatBox("...", 'bot');
 
             while (true) {
                 const { value, done } = await reader.read();
-                if (done) break;
-                
-                fullBotMessage += decoder.decode(value, { stream: true });
-                if (!botMessageElement) {
-                    botMessageElement = addMessageToChatBox("...", 'bot');
+                if (done) {
+                    break;
                 }
-                
-                // Update existing message element with new content
+                fullBotMessage += decoder.decode(value, { stream: true });
                 botMessageElement.querySelector('.message-content').innerHTML = marked.parse(fullBotMessage);
-                feather.replace();
-                chatBox.scrollTop = chatBox.scrollHeight;
             }
-
-            // Update history after the full message is received
+            
+            feather.replace(); // Render icon copy khi message hoàn tất
+            
+            // Cập nhật history
             conversationHistory.push({ role: "user", parts: promptParts });
             conversationHistory.push({ role: "model", parts: [{ text: fullBotMessage }] });
 
+            currentImage = null; // Reset image sau khi gửi
+
         } catch (error) {
-            console.error('API call failed:', error);
+            console.error('Loi o phia client:', error);
             loadingIndicator.style.display = 'none';
-            addMessageToChatBox('Rất tiếc, đã có lỗi xảy ra. Vui lòng thử lại.', 'bot');
+            // Hiển thị thông báo lỗi chi tiết hơn nếu có
+            addMessageToChatBox(`Rất tiếc, đã có lỗi xảy ra: ${error.message}`, 'bot');
         }
     });
 
-    // Event delegation for copy buttons
+    // --- Event Delegation for copy ---
     chatBox.addEventListener('click', (e) => {
         const copyBtn = e.target.closest('.copy-btn');
         if (copyBtn) {
@@ -209,8 +165,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // Initialize Feather Icons
     feather.replace();
-    // Start with the initial welcome message
     startNewChat();
 });
