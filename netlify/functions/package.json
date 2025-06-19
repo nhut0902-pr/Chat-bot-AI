@@ -1,8 +1,18 @@
 {
-  "name": "gemini-chatbot-functions",
+  "name": "gemini-chatbot-netlify",
   "version": "1.0.0",
-  "description": "Netlify Functions for the Gemini Chatbot",
+  "description": "A full-featured Gemini AI chatbot deployed on Netlify with serverless functions",
+  "main": "public/index.html",
+  "scripts": {
+    "start": "netlify dev",
+    "dev": "netlify dev"
+  },
+  "author": "",
+  "license": "ISC",
   "dependencies": {
-    "@google/generative-ai": "^0.11.0"
+    "@google/generative-ai": "^0.12.0"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.23.4"
   }
 }
