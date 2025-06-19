@@ -1,4 +1,4 @@
-// script.js - PHIÊN BẢN HOÀN CHỈNH (SAU KHI SỬA LỖI)
+// script.js - PHIÊN BẢN HOÀN THIỆN NHẤT
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
     const chatForm = document.getElementById('chat-form');
@@ -100,12 +100,25 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ prompt: promptParts, history: conversationHistory })
             });
 
+            // Xử lý lỗi một cách an toàn
+            if (!response.ok) {
+                let errorMsg = `Lỗi từ server: ${response.status}`;
+                try {
+                    // Cố gắng đọc lỗi dạng JSON trước
+                    const errorData = await response.json();
+                    errorMsg = errorData.message || JSON.stringify(errorData);
+                } catch (jsonError) {
+                    // Nếu không phải JSON, đọc như text
+                    errorMsg = await response.text();
+                }
+                throw new Error(errorMsg);
+            }
+            
+            // Nếu không có lỗi, xử lý stream
             loadingIndicator.style.display = 'none';
 
-            if (!response.ok || !response.body) {
-                const errorData = await response.json().catch(() => response.text());
-                const errorMessage = typeof errorData === 'object' ? errorData.message : errorData;
-                throw new Error(errorMessage || `Lỗi từ server: ${response.status}`);
+            if (!response.body) {
+                throw new Error("Không nhận được nội dung trả về từ server.");
             }
 
             const reader = response.body.getReader();
