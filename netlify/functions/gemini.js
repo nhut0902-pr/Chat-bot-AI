@@ -1,53 +1,36 @@
+// gemini.js - PHIÊN BẢN GỠ LỖI
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 exports.handler = async function (event, context) {
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
-
     try {
         const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-        // Lấy prompt và history từ body của request
-        // Nếu không có history, mặc định là một mảng rỗng
         const { prompt, history = [] } = JSON.parse(event.body);
 
-        if (!prompt) {
-            return { statusCode: 400, body: JSON.stringify({ error: 'Prompt is required' }) };
-        }
+        if (!prompt) { throw new Error("Prompt is missing from the request body."); }
 
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-
-        const chat = model.startChat({
-            history: history,
-            generationConfig: {
-                maxOutputTokens: 2048,
-            },
-        });
-
+        const chat = model.startChat({ history: history });
         const result = await chat.sendMessageStream(prompt);
 
         const stream = new ReadableStream({
             async start(controller) {
                 for await (const chunk of result.stream) {
-                    const chunkText = chunk.text();
-                    controller.enqueue(new TextEncoder().encode(chunkText));
+                    controller.enqueue(new TextEncoder().encode(chunk.text()));
                 }
                 controller.close();
             }
         });
-
-        return new Response(stream, {
-            status: 200,
-            headers: {
-                "Content-Type": "text/plain; charset=utf-8",
-            },
-        });
-
+        return new Response(stream, { status: 200, headers: { "Content-Type": "text/plain; charset=utf-8" } });
     } catch (error) {
-        console.error("LOI BEN TRONG FUNCTION:", error);
+        // QUAN TRỌNG: Gửi thông tin lỗi chi tiết về cho frontend
+        console.error("!!! LOI BEN TRONG FUNCTION !!!", error);
+        const errorBody = `Error Name: ${error.name}\nMessage: ${error.message}\nStack: ${error.stack}`;
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: 'Loi tu Gemini Function.', details: error.message }),
+            body: errorBody
         };
     }
 };
