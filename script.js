@@ -1,4 +1,4 @@
-// script.js - PHIÊN BẢN SỬA LỖI XỬ LÝ STREAM
+// script.js - PHIÊN BẢN CUỐI CÙNG - SỬA LỖI XỬ LÝ ERROR
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
     const chatForm = document.getElementById('chat-form');
@@ -45,10 +45,12 @@ document.addEventListener('DOMContentLoaded', () => {
         messageElement.classList.add('message', `${sender}-message`);
         const avatarSrc = sender === 'bot' ? 'https://ssl.gstatic.com/chat/ui/v1/bot_avatar_42.svg' : 'https://i.pravatar.cc/40?u=user';
         
+        const content = marked.parse(message || ""); // Đảm bảo message không phải null/undefined
+        
         messageElement.innerHTML = `
             <img src="${avatarSrc}" alt="${sender} avatar" class="avatar">
             <div class="message-content">
-                ${marked.parse(message)}
+                ${content}
                 ${sender === 'bot' ? `<div class="message-actions"><button class="copy-btn" title="Sao chép"><i data-feather="copy"></i></button></div>` : ''}
             </div>
         `;
@@ -114,9 +116,9 @@ document.addEventListener('DOMContentLoaded', () => {
             loadingIndicator.style.display = 'none';
 
             if (!response.ok) {
-                // Lấy thông báo lỗi từ body nếu có
-                const errorData = await response.json();
-                throw new Error(errorData.details || `Server error: ${response.statusText}`);
+                // SỬA LỖI Ở ĐÂY: Đọc lỗi như text thay vì json
+                const errorText = await response.text(); 
+                throw new Error(errorText || `Lỗi từ server: ${response.status}`);
             }
 
             const reader = response.body.getReader();
@@ -130,22 +132,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     break;
                 }
                 fullBotMessage += decoder.decode(value, { stream: true });
-                botMessageElement.querySelector('.message-content').innerHTML = marked.parse(fullBotMessage);
+                // Cập nhật nội dung mà không cần parse lại toàn bộ HTML
+                const contentDiv = botMessageElement.querySelector('.message-content');
+                if (contentDiv) {
+                    contentDiv.innerHTML = marked.parse(fullBotMessage);
+                }
             }
             
-            feather.replace(); // Render icon copy khi message hoàn tất
+            // Render lại icon copy sau khi stream kết thúc
+            const actionDiv = botMessageElement.querySelector('.message-actions');
+            if (actionDiv) {
+                 actionDiv.innerHTML = `<button class="copy-btn" title="Sao chép"><i data-feather="copy"></i></button>`;
+                 feather.replace();
+            }
             
-            // Cập nhật history
             conversationHistory.push({ role: "user", parts: promptParts });
             conversationHistory.push({ role: "model", parts: [{ text: fullBotMessage }] });
 
-            currentImage = null; // Reset image sau khi gửi
+            currentImage = null;
 
         } catch (error) {
-            console.error('Loi o phia client:', error);
+            console.error('Lỗi ở phía client:', error);
             loadingIndicator.style.display = 'none';
-            // Hiển thị thông báo lỗi chi tiết hơn nếu có
-            addMessageToChatBox(`Rất tiếc, đã có lỗi xảy ra: ${error.message}`, 'bot');
+            addMessageToChatBox(`Rất tiếc, đã có lỗi xảy ra.`, 'bot');
         }
     });
 
