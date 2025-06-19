@@ -1,83 +1,30 @@
-// script.js - PHIÊN BẢN GỠ LỖI
+// script.js - PHIÊN BẢN HOÀN CHỈNH (SAU KHI SỬA LỖI)
 document.addEventListener('DOMContentLoaded', () => {
+    // --- DOM Elements ---
     const chatForm = document.getElementById('chat-form');
     const userInput = document.getElementById('user-input');
     const chatBox = document.getElementById('chat-box');
     const loadingIndicator = document.getElementById('loading-indicator');
-    const newChatBtn = document.getElementById('new-chat-btn');
-    let conversationHistory = [];
-
-    const addMessageToChatBox = (htmlContent, sender) => {
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('message', `${sender}-message`);
-        const avatarSrc = sender === 'bot' ? 'https://ssl.gstatic.com/chat/ui/v1/bot_avatar_42.svg' : 'https://i.pravatar.cc/40?u=user';
-        messageElement.innerHTML = `<img src="${avatarSrc}" alt="avatar" class="avatar"><div class="message-content">${htmlContent}</div>`;
-        chatBox.appendChild(messageElement);
-        chatBox.scrollTop = chatBox.scrollHeight;
-        return messageElement;
-    };
-
-    const startNewChat = () => {
-        chatBox.innerHTML = '';
-        conversationHistory = [];
-        addMessageToChatBox(marked.parse("Chào bạn! Tôi là GemBot Pro."), 'bot');
-    };
-    newChatBtn.addEventListener('click', startNewChat);
-
-    chatForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const userMessage = userInput.value.trim();
-        if (!userMessage) return;
-
-        addMessageToChatBox(marked.parse(userMessage), 'user');
-        const promptParts = [{ text: userMessage }];
-        userInput.value = '';
-        loadingIndicator.style.display = 'flex';
-        chatBox.scrollTop = chatBox.scrollHeight;
-
-        try {
-            const response = await fetch('/.netlify/functions/gemini', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt: promptParts, history: conversationHistory })
-            });
-
-            loadingIndicator.style.display = 'none';
-
-            if (!response.ok) {
-                // Đọc lỗi dạng text từ backend và ném ra
-                const errorText = await response.text();
-                throw new Error(errorText);
-            }
-
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let fullBotMessage = "";
-            let botMessageElement = addMessageToChatBox("...", 'bot');
-            const contentDiv = botMessageElement.querySelector('.message-content');
-
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-                fullBotMessage += decoder.decode(value, { stream: true });
-                contentDiv.innerHTML = marked.parse(fullBotMessage);
-            }
-
-            conversationHistory.push({ role: "user", parts: promptParts });
-            conversationHistory.push({ role: "model", parts: [{ text: fullBotMessage }] });
-
-        } catch (error) {
-            // QUAN TRỌNG: Hiển thị lỗi chi tiết ra màn hình
-            console.error('LOI O CLIENT:', error);
-            loadingIndicator.style.display = 'none';
-            const errorMessageHTML = `<p>Đã xảy ra lỗi. Thông tin gỡ lỗi:</p><pre style="white-space: pre-wrap; word-wrap: break-word;">${error.message}</pre>`;
-            addMessageToChatBox(errorMessageHTML, 'bot');
-        }
-    });
-
-    // Các phần khác giữ nguyên (theme, file upload...)
-    // Nhưng tạm thời lược bỏ để tập trung vào lỗi chính
     const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    const newChatBtn = document.getElementById('new-chat-btn');
+    const fileInput = document.getElementById('file-input');
+    const imagePreviewContainer = document.getElementById('image-preview-container');
+
+    // --- State ---
+    let conversationHistory = [];
+    let currentImage = null;
+
+    // --- Utility Functions ---
+    const fileToGenerativePart = async (file) => {
+        const base64EncodedDataPromise = new Promise((resolve) => {
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result.split(',')[1]);
+            reader.readAsDataURL(file);
+        });
+        return { inlineData: { data: await base64EncodedDataPromise, mimeType: file.type } };
+    };
+
+    // --- Theme Management ---
     const applyTheme = (theme) => {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
@@ -91,6 +38,117 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     const savedTheme = localStorage.getItem('theme') || 'light';
     applyTheme(savedTheme);
+
+    // --- Chat UI Functions ---
+    const addMessageToChatBox = (message, sender) => {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message', `${sender}-message`);
+        const avatarSrc = sender === 'bot' ? 'https://ssl.gstatic.com/chat/ui/v1/bot_avatar_42.svg' : 'https://i.pravatar.cc/40?u=user';
+        
+        const content = marked.parse(message || " "); 
+        
+        messageElement.innerHTML = `
+            <img src="${avatarSrc}" alt="${sender} avatar" class="avatar">
+            <div class="message-content">${content}</div>
+        `;
+        
+        chatBox.appendChild(messageElement);
+        feather.replace();
+        chatBox.scrollTop = chatBox.scrollHeight;
+        return messageElement;
+    };
+
+    const startNewChat = () => {
+        chatBox.innerHTML = '';
+        conversationHistory = [];
+        currentImage = null;
+        imagePreviewContainer.innerHTML = '';
+        addMessageToChatBox("Chào bạn! Tôi là GemBot Pro. Bạn có thể hỏi tôi hoặc tải ảnh lên để tôi phân tích.", 'bot');
+    };
+    newChatBtn.addEventListener('click', startNewChat);
+
+    // --- Form & Input Handling ---
+    userInput.addEventListener('input', () => { userInput.style.height = 'auto'; userInput.style.height = (userInput.scrollHeight) + 'px'; });
+    fileInput.addEventListener('change', async (e) => {
+        const file = e.target.files[0];
+        if (file) {
+            currentImage = await fileToGenerativePart(file);
+            imagePreviewContainer.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="Image preview"><button class="remove-img-btn">×</button>`;
+            imagePreviewContainer.querySelector('.remove-img-btn').addEventListener('click', () => { currentImage = null; imagePreviewContainer.innerHTML = ''; fileInput.value = ''; });
+        }
+    });
+
+    // --- MAIN SUBMIT LOGIC ---
+    chatForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const userMessage = userInput.value.trim();
+        if (!userMessage && !currentImage) return;
+
+        addMessageToChatBox(userMessage || "[Đã gửi 1 ảnh]", 'user');
+        
+        const promptParts = [];
+        if (currentImage) promptParts.push(currentImage);
+        if (userMessage) promptParts.push({ text: userMessage });
+        
+        userInput.value = ''; userInput.style.height = 'auto'; imagePreviewContainer.innerHTML = '';
+        loadingIndicator.style.display = 'flex'; chatBox.scrollTop = chatBox.scrollHeight;
+
+        try {
+            const response = await fetch('/.netlify/functions/gemini', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ prompt: promptParts, history: conversationHistory })
+            });
+
+            loadingIndicator.style.display = 'none';
+
+            if (!response.ok || !response.body) {
+                const errorData = await response.json().catch(() => response.text());
+                const errorMessage = typeof errorData === 'object' ? errorData.message : errorData;
+                throw new Error(errorMessage || `Lỗi từ server: ${response.status}`);
+            }
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder();
+            let fullBotMessage = "";
+            let botMessageElement = addMessageToChatBox("...", 'bot');
+            const contentDiv = botMessageElement.querySelector('.message-content');
+            
+            while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                fullBotMessage += decoder.decode(value, { stream: true });
+                contentDiv.innerHTML = marked.parse(fullBotMessage);
+            }
+            
+            contentDiv.insertAdjacentHTML('beforeend', `<div class="message-actions"><button class="copy-btn" title="Sao chép"><i data-feather="copy"></i></button></div>`);
+            feather.replace();
+            
+            const userHistoryPart = { role: "user", parts: promptParts };
+            conversationHistory.push(userHistoryPart);
+            conversationHistory.push({ role: "model", parts: [{ text: fullBotMessage }] });
+            currentImage = null;
+
+        } catch (error) {
+            console.error('Lỗi ở phía client:', error);
+            loadingIndicator.style.display = 'none';
+            addMessageToChatBox(`Rất tiếc, đã có lỗi xảy ra: ${error.message}`, 'bot');
+        }
+    });
+
+    // --- Event Delegation for copy button ---
+    chatBox.addEventListener('click', (e) => {
+        const copyBtn = e.target.closest('.copy-btn');
+        if (copyBtn) {
+            const messageContent = copyBtn.closest('.message-content').innerText;
+            navigator.clipboard.writeText(messageContent).then(() => {
+                copyBtn.innerHTML = `<i data-feather="check"></i>`; feather.replace();
+                setTimeout(() => { copyBtn.innerHTML = `<i data-feather="copy"></i>`; feather.replace(); }, 2000);
+            });
+        }
+    });
+
+    // --- Initial Setup ---
     feather.replace();
     startNewChat();
 });
