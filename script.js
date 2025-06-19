@@ -1,155 +1,275 @@
-// script.js - PHIÊN BẢN HOÀN THIỆN, ĐẦY ĐỦ TÍNH NĂNG
 document.addEventListener('DOMContentLoaded', () => {
-    // --- DOM Elements ---
-    const chatForm = document.getElementById('chat-form');
-    const userInput = document.getElementById('user-input');
+    // === DOM ELEMENTS ===
     const chatBox = document.getElementById('chat-box');
-    const loadingIndicator = document.getElementById('loading-indicator');
-    const themeToggleBtn = document.getElementById('theme-toggle-btn');
+    const userInput = document.getElementById('user-input');
+    const sendBtn = document.getElementById('send-btn');
+    const micBtn = document.getElementById('mic-btn');
+    const cameraBtn = document.getElementById('camera-btn');
+    const webSearchBtn = document.getElementById('web-search-btn');
     const newChatBtn = document.getElementById('new-chat-btn');
-    const fileInput = document.getElementById('file-input');
+    const toggleHistoryBtn = document.getElementById('toggle-history-btn');
+    const historyPanel = document.getElementById('history-panel');
+    const appContainer = document.getElementById('app-container');
+    const loadingIndicator = document.getElementById('loading-indicator');
+    const ttsToggle = document.getElementById('tts-toggle');
+
+    // Media elements
+    const mediaPreviewArea = document.getElementById('media-preview-area');
     const imagePreviewContainer = document.getElementById('image-preview-container');
-
-    // --- State ---
+    const imagePreview = document.getElementById('image-preview');
+    const removeImageBtn = document.getElementById('remove-image-btn');
+    const videoFeedContainer = document.getElementById('video-feed-container');
+    const videoFeed = document.getElementById('video-feed');
+    const captureBtn = document.getElementById('capture-btn');
+    const cancelCameraBtn = document.getElementById('cancel-camera-btn');
+    const canvas = document.getElementById('canvas');
+    
+    // === STATE ===
     let conversationHistory = [];
-    let currentImage = null;
+    let capturedImageBase64 = null;
+    let isSearchMode = false;
+    let mediaStream = null;
 
-    // --- Utility Functions ---
-    const fileToGenerativePart = async (file) => {
-        const base64EncodedDataPromise = new Promise((resolve) => {
-            const reader = new FileReader();
-            reader.onloadend = () => resolve(reader.result.split(',')[1]);
-            reader.readAsDataURL(file);
-        });
-        return { inlineData: { data: await base64EncodedDataPromise, mimeType: file.type } };
-    };
+    // === SPEECH RECOGNITION (STT) ===
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recognition;
+    if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.lang = 'vi-VN';
+        recognition.interimResults = false;
+        recognition.maxAlternatives = 1;
 
-    // --- Theme Management ---
-    const applyTheme = (theme) => {
-        document.documentElement.setAttribute('data-theme', theme);
-        localStorage.setItem('theme', theme);
-        const icon = theme === 'dark' ? 'sun' : 'moon';
-        themeToggleBtn.innerHTML = `<i data-feather="${icon}"></i>`;
-        feather.replace();
-    };
-    themeToggleBtn.addEventListener('click', () => {
-        const newTheme = document.documentElement.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
-        applyTheme(newTheme);
-    });
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    applyTheme(savedTheme);
+        recognition.onresult = (event) => {
+            const transcript = event.results[0][0].transcript;
+            userInput.value = transcript;
+            stopRecording();
+            sendMessage(); // Automatically send after speech
+        };
+        
+        recognition.onerror = (event) => {
+            console.error('Lỗi nhận dạng giọng nói:', event.error);
+            stopRecording();
+        };
 
-    // --- Chat UI Functions ---
-    const addMessageToChatBox = (message, sender) => {
-        const messageElement = document.createElement('div');
-        messageElement.classList.add('message', `${sender}-message`);
-        const avatarSrc = sender === 'bot' ? 'https://ssl.gstatic.com/chat/ui/v1/bot_avatar_42.svg' : 'https://i.pravatar.cc/40?u=user';
-        const content = marked.parse(message || " ");
-        messageElement.innerHTML = `
-            <img src="${avatarSrc}" alt="${sender} avatar" class="avatar">
-            <div class="message-content">${content}</div>
-        `;
-        chatBox.appendChild(messageElement);
-        feather.replace();
-        chatBox.scrollTop = chatBox.scrollHeight;
-        return messageElement;
-    };
-
-    const startNewChat = () => {
-        chatBox.innerHTML = '';
-        conversationHistory = [];
-        currentImage = null;
-        imagePreviewContainer.innerHTML = '';
-        addMessageToChatBox("Chào bạn! Tôi là GemBot Pro. Bạn có thể hỏi tôi hoặc tải ảnh lên để tôi phân tích.", 'bot');
-    };
-    newChatBtn.addEventListener('click', startNewChat);
-
-    // --- Form & Input Handling ---
-    userInput.addEventListener('input', () => { userInput.style.height = 'auto'; userInput.style.height = (userInput.scrollHeight) + 'px'; });
-    fileInput.addEventListener('change', async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-            currentImage = await fileToGenerativePart(file);
-            imagePreviewContainer.innerHTML = `<img src="${URL.createObjectURL(file)}" alt="Image preview"><button class="remove-img-btn">×</button>`;
-            imagePreviewContainer.querySelector('.remove-img-btn').addEventListener('click', () => { currentImage = null; imagePreviewContainer.innerHTML = ''; fileInput.value = ''; });
+        recognition.onend = () => {
+            stopRecording();
+        };
+    } else {
+        micBtn.style.display = 'none';
+        console.warn("Trình duyệt không hỗ trợ Web Speech API.");
+    }
+    
+    const startRecording = () => {
+        if (recognition) {
+            micBtn.classList.add('recording');
+            recognition.start();
         }
-    });
+    };
+    
+    const stopRecording = () => {
+        if (recognition) {
+            micBtn.classList.remove('recording');
+            recognition.stop();
+        }
+    };
 
-    // --- MAIN SUBMIT LOGIC ---
-    chatForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const userMessage = userInput.value.trim();
-        if (!userMessage && !currentImage) return;
+    // === TEXT TO SPEECH (TTS) ===
+    const speak = (text) => {
+        if (!ttsToggle.checked) return;
+        window.speechSynthesis.cancel(); // Dừng bất kỳ giọng nói nào đang phát
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = 'vi-VN';
+        window.speechSynthesis.speak(utterance);
+    };
 
-        addMessageToChatBox(userMessage || "[Đã gửi 1 ảnh]", 'user');
+    // === CAMERA FUNCTIONS ===
+    const startCamera = async () => {
+        try {
+            if (mediaStream) {
+                mediaStream.getTracks().forEach(track => track.stop());
+            }
+            mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+            videoFeed.srcObject = mediaStream;
+            videoFeedContainer.classList.remove('hidden');
+            mediaPreviewArea.classList.remove('hidden');
+            imagePreviewContainer.classList.add('hidden');
+        } catch (err) {
+            console.error("Lỗi truy cập camera:", err);
+            appendMessage("Không thể truy cập camera. Vui lòng cấp quyền.", 'bot');
+        }
+    };
+
+    const stopCamera = () => {
+        if (mediaStream) {
+            mediaStream.getTracks().forEach(track => track.stop());
+        }
+        videoFeedContainer.classList.add('hidden');
+        if (!capturedImageBase64) {
+             mediaPreviewArea.classList.add('hidden');
+        }
+        mediaStream = null;
+    };
+
+    const captureImage = () => {
+        const context = canvas.getContext('2d');
+        canvas.width = videoFeed.videoWidth;
+        canvas.height = videoFeed.videoHeight;
+        context.drawImage(videoFeed, 0, 0, canvas.width, canvas.height);
         
-        const promptParts = [];
-        if (currentImage) promptParts.push(currentImage);
-        if (userMessage) promptParts.push({ text: userMessage });
+        capturedImageBase64 = canvas.toDataURL('image/jpeg').split(',')[1];
         
-        userInput.value = ''; userInput.style.height = 'auto'; imagePreviewContainer.innerHTML = '';
-        loadingIndicator.style.display = 'flex'; chatBox.scrollTop = chatBox.scrollHeight;
+        imagePreview.src = `data:image/jpeg;base64,${capturedImageBase64}`;
+        imagePreviewContainer.classList.remove('hidden');
+        
+        stopCamera();
+    };
+    
+    const removeImage = () => {
+        capturedImageBase64 = null;
+        imagePreview.src = '';
+        imagePreviewContainer.classList.add('hidden');
+        mediaPreviewArea.classList.add('hidden');
+    };
+
+    // === CORE CHAT FUNCTIONS ===
+    const appendMessage = (message, sender, sources = []) => {
+        const messageElement = document.createElement('div');
+        messageElement.classList.add('message', sender);
+
+        if (sender === 'bot') {
+            // Sử dụng thư viện "marked" để render Markdown từ AI
+            let htmlContent = marked.parse(message);
+            if (sources.length > 0) {
+                htmlContent += `<div class="sources"><strong>Nguồn:</strong> ${sources.join(', ')}</div>`;
+            }
+            messageElement.innerHTML = htmlContent;
+        } else {
+            messageElement.textContent = message;
+        }
+        
+        chatBox.appendChild(messageElement);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    };
+
+    const sendMessage = async () => {
+        const prompt = userInput.value.trim();
+        if (!prompt && !capturedImageBase64) return;
+
+        appendMessage(prompt, 'user');
+        
+        // Hiển thị loading
+        loadingIndicator.classList.remove('hidden');
+        userInput.value = '';
+        userInput.style.height = 'auto'; // Reset height
+        
+        let endpoint = '/chat';
+        let body;
+        
+        if (isSearchMode) {
+            endpoint = '/search-and-summarize';
+            body = { query: prompt };
+            isSearchMode = false; // Reset sau khi gửi
+            webSearchBtn.classList.remove('active'); // Ví dụ: đổi style
+        } else {
+            body = {
+                history: conversationHistory,
+                prompt: prompt,
+                imageBase64: capturedImageBase64
+            };
+        }
 
         try {
-            const response = await fetch('/.netlify/functions/gemini', {
+            const response = await fetch(`http://localhost:3000${endpoint}`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ prompt: promptParts, history: conversationHistory })
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body)
             });
 
-            // Xử lý lỗi một cách an toàn, chỉ đọc body một lần duy nhất
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(errorText || `Lỗi từ server: ${response.status}`);
-            }
-            
-            loadingIndicator.style.display = 'none';
-
-            if (!response.body) {
-                throw new Error("Không nhận được nội dung trả về từ server.");
+                throw new Error(`Lỗi HTTP: ${response.status}`);
             }
 
-            const reader = response.body.getReader();
-            const decoder = new TextDecoder();
-            let fullBotMessage = "";
-            let botMessageElement = addMessageToChatBox("...", 'bot');
-            const contentDiv = botMessageElement.querySelector('.message-content');
-            
-            while (true) {
-                const { value, done } = await reader.read();
-                if (done) break;
-                fullBotMessage += decoder.decode(value, { stream: true });
-                contentDiv.innerHTML = marked.parse(fullBotMessage);
+            const data = await response.json();
+            const botResponse = data.response;
+            const sources = data.sources || [];
+
+            appendMessage(botResponse, 'bot', sources);
+            speak(botResponse.replace(/`/g, '').replace(/\*/g, '')); // Đọc câu trả lời, loại bỏ ký tự markdown
+
+            // Cập nhật lịch sử
+            if (!isSearchMode) {
+                conversationHistory.push({ role: 'user', parts: [{text: prompt}] });
+                conversationHistory.push({ role: 'model', parts: [{text: botResponse}] });
             }
-            
-            contentDiv.insertAdjacentHTML('beforeend', `<div class="message-actions"><button class="copy-btn" title="Sao chép"><i data-feather="copy"></i></button></div>`);
-            feather.replace();
-            
-            const userHistoryPart = { role: "user", parts: promptParts };
-            conversationHistory.push(userHistoryPart);
-            conversationHistory.push({ role: "model", parts: [{ text: fullBotMessage }] });
-            currentImage = null;
 
         } catch (error) {
-            console.error('Lỗi ở phía client:', error);
-            loadingIndicator.style.display = 'none';
-            addMessageToChatBox(`Rất tiếc, đã có lỗi xảy ra: ${error.message}`, 'bot');
+            console.error("Lỗi khi gửi tin nhắn:", error);
+            appendMessage("Rất tiếc, đã có lỗi xảy ra. Vui lòng thử lại sau.", 'bot');
+        } finally {
+            // Dọn dẹp sau khi gửi
+            removeImage();
+            loadingIndicator.classList.add('hidden');
+            userInput.focus();
+        }
+    };
+    
+    // === EVENT LISTENERS ===
+    sendBtn.addEventListener('click', sendMessage);
+    userInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            sendMessage();
+        }
+    });
+    
+    userInput.addEventListener('input', () => {
+        userInput.style.height = 'auto';
+        userInput.style.height = (userInput.scrollHeight) + 'px';
+    });
+    
+    micBtn.addEventListener('click', () => {
+        if (micBtn.classList.contains('recording')) {
+            stopRecording();
+        } else {
+            startRecording();
         }
     });
 
-    // --- Event Delegation for copy button ---
-    chatBox.addEventListener('click', (e) => {
-        const copyBtn = e.target.closest('.copy-btn');
-        if (copyBtn) {
-            const messageContent = copyBtn.closest('.message-content').innerText;
-            navigator.clipboard.writeText(messageContent).then(() => {
-                copyBtn.innerHTML = `<i data-feather="check"></i>`; feather.replace();
-                setTimeout(() => { copyBtn.innerHTML = `<i data-feather="copy"></i>`; feather.replace(); }, 2000);
-            });
-        }
+    cameraBtn.addEventListener('click', startCamera);
+    captureBtn.addEventListener('click', captureImage);
+    cancelCameraBtn.addEventListener('click', stopCamera);
+    removeImageBtn.addEventListener('click', removeImage);
+
+    webSearchBtn.addEventListener('click', () => {
+        isSearchMode = true;
+        // Thêm hiệu ứng UI để người dùng biết đang ở chế độ tìm kiếm
+        userInput.placeholder = "Nhập chủ đề bạn muốn tìm kiếm và tóm tắt...";
+        userInput.focus();
+        // Bạn có thể thêm class để đổi màu nút
+        // webSearchBtn.classList.add('active'); 
     });
 
-    // --- Initial Setup ---
-    feather.replace();
-    startNewChat();
+    newChatBtn.addEventListener('click', () => {
+        chatBox.innerHTML = '<div class="message bot">Chào bạn! Tôi có thể giúp gì cho bạn hôm nay?</div>';
+        conversationHistory = [];
+        removeImage();
+        isSearchMode = false;
+        userInput.placeholder = "Nhập tin nhắn hoặc sử dụng mic...";
+    });
+
+    toggleHistoryBtn.addEventListener('click', () => {
+        historyPanel.classList.toggle('collapsed');
+        // Thêm logic để thay đổi icon nếu muốn
+        const icon = toggleHistoryBtn.querySelector('i');
+        if (historyPanel.classList.contains('collapsed')) {
+            icon.classList.remove('fa-chevron-left');
+            icon.classList.add('fa-chevron-right');
+        } else {
+            icon.classList.remove('fa-chevron-right');
+            icon.classList.add('fa-chevron-left');
+        }
+    });
 });
