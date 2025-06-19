@@ -1,4 +1,4 @@
-// script.js - PHIÊN BẢN SIÊU ỔN ĐỊNH
+// script.js - PHIÊN BẢN HOÀN CHỈNH VÀ ỔN ĐỊNH
 document.addEventListener('DOMContentLoaded', () => {
     // --- DOM Elements ---
     const chatForm = document.getElementById('chat-form');
@@ -39,29 +39,18 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('theme') || 'light';
     applyTheme(savedTheme);
 
-    // --- Chat Functions ---
+    // --- Chat UI Functions ---
     const addMessageToChatBox = (message, sender) => {
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', `${sender}-message`);
         const avatarSrc = sender === 'bot' ? 'https://ssl.gstatic.com/chat/ui/v1/bot_avatar_42.svg' : 'https://i.pravatar.cc/40?u=user';
         
-        // Parse message ngay khi thêm vào, nhưng xử lý an toàn
-        const content = marked.parse(message || ""); 
+        const content = marked.parse(message || " "); 
         
         messageElement.innerHTML = `
             <img src="${avatarSrc}" alt="${sender} avatar" class="avatar">
-            <div class="message-content">
-                ${content}
-            </div>
+            <div class="message-content">${content}</div>
         `;
-        
-        // Chỉ thêm nút copy cho bot
-        if (sender === 'bot') {
-            const messageContentDiv = messageElement.querySelector('.message-content');
-            if (messageContentDiv) {
-                messageContentDiv.insertAdjacentHTML('beforeend', `<div class="message-actions"><button class="copy-btn" title="Sao chép"><i data-feather="copy"></i></button></div>`);
-            }
-        }
         
         chatBox.appendChild(messageElement);
         feather.replace();
@@ -89,19 +78,29 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- MAIN LOGIC ---
+    // --- MAIN SUBMIT LOGIC ---
     chatForm.addEventListener('submit', async (e) => {
         e.preventDefault();
         const userMessage = userInput.value.trim();
         if (!userMessage && !currentImage) return;
 
-        addMessageToChatBox(userMessage || "[Phân tích ảnh]", 'user');
-        const promptParts = [userMessage];
-        if (currentImage) { promptParts.unshift(currentImage); }
+        // 1. Prepare and display user's message
+        addMessageToChatBox(userMessage || "[Đã gửi 1 ảnh]", 'user');
+        
+        const promptParts = [];
+        if (currentImage) {
+            promptParts.push(currentImage);
+        }
+        if (userMessage) {
+            promptParts.push({ text: userMessage });
+        }
+        
+        // 2. Clear inputs and show loading
         userInput.value = ''; userInput.style.height = 'auto'; imagePreviewContainer.innerHTML = '';
         loadingIndicator.style.display = 'flex'; chatBox.scrollTop = chatBox.scrollHeight;
 
         try {
+            // 3. Call the backend function
             const response = await fetch('/.netlify/functions/gemini', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -115,34 +114,33 @@ document.addEventListener('DOMContentLoaded', () => {
                 throw new Error(errorText || `Lỗi từ server: ${response.status}`);
             }
 
+            // 4. Handle the successful stream response
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
             let fullBotMessage = "";
             let botMessageElement = addMessageToChatBox("...", 'bot');
             const contentDiv = botMessageElement.querySelector('.message-content');
             
-            // Xóa nút copy tạm thời
-            const tempAction = contentDiv.querySelector('.message-actions');
-            if (tempAction) tempAction.remove();
-
             while (true) {
                 const { value, done } = await reader.read();
                 if (done) break;
-                
                 fullBotMessage += decoder.decode(value, { stream: true });
-                // Cập nhật nội dung text, không parse markdown
-                contentDiv.innerText = fullBotMessage;
+                // Update with parsed markdown as it streams for better UX
+                contentDiv.innerHTML = marked.parse(fullBotMessage);
             }
             
-            // SAU KHI KẾT THÚC, PARSE MARKDOWN MỘT LẦN DUY NHẤT
-            contentDiv.innerHTML = marked.parse(fullBotMessage);
-            
-            // Thêm lại nút copy
+            // 5. Add copy button and update history *after* stream is complete
             contentDiv.insertAdjacentHTML('beforeend', `<div class="message-actions"><button class="copy-btn" title="Sao chép"><i data-feather="copy"></i></button></div>`);
             feather.replace();
             
-            conversationHistory.push({ role: "user", parts: promptParts });
+            // Build a safe history
+            const userHistoryPart = { role: "user", parts: [] };
+            if (currentImage) userHistoryPart.parts.push(currentImage);
+            if (userMessage) userHistoryPart.parts.push({ text: userMessage });
+            
+            conversationHistory.push(userHistoryPart);
             conversationHistory.push({ role: "model", parts: [{ text: fullBotMessage }] });
+            
             currentImage = null;
 
         } catch (error) {
@@ -152,7 +150,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- Event Delegation for copy ---
+    // --- Event Delegation for copy button ---
     chatBox.addEventListener('click', (e) => {
         const copyBtn = e.target.closest('.copy-btn');
         if (copyBtn) {
@@ -164,6 +162,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // --- Initial Setup ---
     feather.replace();
     startNewChat();
 });
