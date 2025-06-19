@@ -1,6 +1,6 @@
-// script.js - PHIÊN BẢN HOÀN THIỆN NHẤT
+// script.js - THE FINAL, ROBUST VERSION
 document.addEventListener('DOMContentLoaded', () => {
-    // --- DOM Elements ---
+    // --- DOM Elements (No changes here) ---
     const chatForm = document.getElementById('chat-form');
     const userInput = document.getElementById('user-input');
     const chatBox = document.getElementById('chat-box');
@@ -10,11 +10,11 @@ document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('file-input');
     const imagePreviewContainer = document.getElementById('image-preview-container');
 
-    // --- State ---
+    // --- State (No changes here) ---
     let conversationHistory = [];
     let currentImage = null;
 
-    // --- Utility Functions ---
+    // --- Utility Functions (No changes here) ---
     const fileToGenerativePart = async (file) => {
         const base64EncodedDataPromise = new Promise((resolve) => {
             const reader = new FileReader();
@@ -24,7 +24,7 @@ document.addEventListener('DOMContentLoaded', () => {
         return { inlineData: { data: await base64EncodedDataPromise, mimeType: file.type } };
     };
 
-    // --- Theme Management ---
+    // --- Theme Management (No changes here) ---
     const applyTheme = (theme) => {
         document.documentElement.setAttribute('data-theme', theme);
         localStorage.setItem('theme', theme);
@@ -39,19 +39,13 @@ document.addEventListener('DOMContentLoaded', () => {
     const savedTheme = localStorage.getItem('theme') || 'light';
     applyTheme(savedTheme);
 
-    // --- Chat UI Functions ---
+    // --- Chat UI Functions (No changes here) ---
     const addMessageToChatBox = (message, sender) => {
         const messageElement = document.createElement('div');
         messageElement.classList.add('message', `${sender}-message`);
         const avatarSrc = sender === 'bot' ? 'https://ssl.gstatic.com/chat/ui/v1/bot_avatar_42.svg' : 'https://i.pravatar.cc/40?u=user';
-        
-        const content = marked.parse(message || " "); 
-        
-        messageElement.innerHTML = `
-            <img src="${avatarSrc}" alt="${sender} avatar" class="avatar">
-            <div class="message-content">${content}</div>
-        `;
-        
+        const content = marked.parse(message || " ");
+        messageElement.innerHTML = `<img src="${avatarSrc}" alt="${sender} avatar" class="avatar"><div class="message-content">${content}</div>`;
         chatBox.appendChild(messageElement);
         feather.replace();
         chatBox.scrollTop = chatBox.scrollHeight;
@@ -67,7 +61,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     newChatBtn.addEventListener('click', startNewChat);
 
-    // --- Form & Input Handling ---
+    // --- Form & Input Handling (No changes here) ---
     userInput.addEventListener('input', () => { userInput.style.height = 'auto'; userInput.style.height = (userInput.scrollHeight) + 'px'; });
     fileInput.addEventListener('change', async (e) => {
         const file = e.target.files[0];
@@ -85,7 +79,6 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!userMessage && !currentImage) return;
 
         addMessageToChatBox(userMessage || "[Đã gửi 1 ảnh]", 'user');
-        
         const promptParts = [];
         if (currentImage) promptParts.push(currentImage);
         if (userMessage) promptParts.push({ text: userMessage });
@@ -93,6 +86,9 @@ document.addEventListener('DOMContentLoaded', () => {
         userInput.value = ''; userInput.style.height = 'auto'; imagePreviewContainer.innerHTML = '';
         loadingIndicator.style.display = 'flex'; chatBox.scrollTop = chatBox.scrollHeight;
 
+        // ===================================================================
+        // FINAL AND ROBUST ERROR HANDLING LOGIC STARTS HERE
+        // ===================================================================
         try {
             const response = await fetch('/.netlify/functions/gemini', {
                 method: 'POST',
@@ -100,25 +96,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ prompt: promptParts, history: conversationHistory })
             });
 
-            // Xử lý lỗi một cách an toàn
+            // If the response is NOT OK, handle the error and exit
             if (!response.ok) {
-                let errorMsg = `Lỗi từ server: ${response.status}`;
-                try {
-                    // Cố gắng đọc lỗi dạng JSON trước
-                    const errorData = await response.json();
-                    errorMsg = errorData.message || JSON.stringify(errorData);
-                } catch (jsonError) {
-                    // Nếu không phải JSON, đọc như text
-                    errorMsg = await response.text();
-                }
-                throw new Error(errorMsg);
+                // Read the response body as text ONCE.
+                const errorText = await response.text();
+                // Throw an error with the text content, which will be caught below.
+                throw new Error(errorText || `Server returned status ${response.status}`);
             }
-            
-            // Nếu không có lỗi, xử lý stream
+
+            // If we reach here, the response is OK. Proceed with streaming.
             loadingIndicator.style.display = 'none';
 
             if (!response.body) {
-                throw new Error("Không nhận được nội dung trả về từ server.");
+                throw new Error("Response from server is OK but has no body.");
             }
 
             const reader = response.body.getReader();
@@ -143,13 +133,16 @@ document.addEventListener('DOMContentLoaded', () => {
             currentImage = null;
 
         } catch (error) {
-            console.error('Lỗi ở phía client:', error);
+            console.error('An error occurred:', error);
             loadingIndicator.style.display = 'none';
             addMessageToChatBox(`Rất tiếc, đã có lỗi xảy ra: ${error.message}`, 'bot');
         }
+        // ===================================================================
+        // FINAL AND ROBUST ERROR HANDLING LOGIC ENDS HERE
+        // ===================================================================
     });
 
-    // --- Event Delegation for copy button ---
+    // --- Event Delegation (No changes here) ---
     chatBox.addEventListener('click', (e) => {
         const copyBtn = e.target.closest('.copy-btn');
         if (copyBtn) {
@@ -161,7 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- Initial Setup ---
+    // --- Initial Setup (No changes here) ---
     feather.replace();
     startNewChat();
 });
