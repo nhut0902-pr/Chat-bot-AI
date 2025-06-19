@@ -1,4 +1,5 @@
-// Thay đổi quan trọng: Trả về một stream thay vì một JSON object đơn lẻ
+// netlify/functions/gemini.js
+
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 
 exports.handler = async function (event, context) {
@@ -21,7 +22,7 @@ exports.handler = async function (event, context) {
             generationConfig: { maxOutputTokens: 2048 },
         });
 
-        // Gửi prompt đa phương tiện (văn bản + ảnh)
+        // Gửi prompt đa phương tiện (văn bản + ảnh) và nhận về stream
         const result = await chat.sendMessageStream(prompt);
 
         // Tạo một ReadableStream để gửi lại cho client
@@ -38,7 +39,7 @@ exports.handler = async function (event, context) {
 
         // Trả về stream cho Netlify
         return new Response(stream, {
-            statusCode: 200,
+            status: 200,
             headers: {
                 "Content-Type": "text/plain; charset=utf-8",
             },
