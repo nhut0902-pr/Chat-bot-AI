@@ -1,0 +1,10 @@
+# Cấu hình build cho Netlify
+[build]
+  # Thư mục chứa các Netlify Functions
+  functions = "netlify/functions/"
+
+# Chuyển hướng để frontend có thể gọi API một cách dễ dàng
+[[redirects]]
+  from = "/.netlify/functions/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
