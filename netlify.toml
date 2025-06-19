@@ -6,9 +6,3 @@
 # Plugin để tự động cài đặt dependencies cho các functions
 [[plugins]]
   package = "@netlify/plugin-functions-install-core"
-
-# Chuyển hướng để frontend có thể gọi API một cách dễ dàng
-[[redirects]]
-  from = "/.netlify/functions/*"
-  to = "/.netlify/functions/:splat"
-  status = 200
