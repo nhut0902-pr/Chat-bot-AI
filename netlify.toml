@@ -1,16 +1,14 @@
+# netlify.toml
+
+# Cài đặt xây dựng cơ bản
 [build]
-  # Thư mục chứa các file HTML, CSS, JS của bạn để Netlify hiển thị
-  publish = "public"
-  # Thư mục chứa các Netlify Functions của bạn
+  # Thư mục chứa các file HTML, CSS, JS tĩnh để publish
+  publish = "." 
+  # Thư mục chứa các serverless functions
   functions = "netlify/functions"
 
-# Chuyển hướng các yêu cầu API đến functions
-[[redirects]]
-  from = "/api/chat"
-  to = "/.netlify/functions/chat"
-  status = 200
-
-[[redirects]]
-  from = "/api/search"
-  to = "/.netlify/functions/search-and-summarize"
-  status = 200
+# Cài đặt chuyển hướng (không cần thiết cho dự án này nhưng nên biết)
+# [[redirects]]
+#   from = "/old-path"
+#   to = "/new-path"
+#   status = 301
