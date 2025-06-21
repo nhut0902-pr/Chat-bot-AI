@@ -1,48 +1,65 @@
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+// netlify/functions/callGemini.js
 
-// Khởi tạo Google Generative AI với API Key từ biến môi trường của Netlify
-const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
-
-exports.handler = async (event) => {
-    // Netlify Functions chỉ chấp nhận phương thức POST cho các yêu cầu có body
+exports.handler = async function (event, context) {
+    // Chỉ cho phép phương thức POST
     if (event.httpMethod !== 'POST') {
         return { statusCode: 405, body: 'Method Not Allowed' };
     }
 
     try {
-        const { history, prompt, imageBase64 } = JSON.parse(event.body);
+        // Lấy API key từ biến môi trường của Netlify (AN TOÀN)
+        const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-        const parts = [{ text: prompt }];
-
-        if (imageBase64) {
-            const imagePart = {
-                inlineData: {
-                    mimeType: 'image/jpeg',
-                    data: imageBase64,
-                },
-            };
-            parts.unshift(imagePart);
+        if (!GEMINI_API_KEY) {
+            throw new Error("API key chưa được cấu hình trên server.");
         }
 
-        const chat = model.startChat({ history });
-        const result = await chat.sendMessage(parts);
-        const response = await result.response;
-        const text = response.text();
+        // Lấy dữ liệu (prompt và file) từ request của frontend
+        const { prompt, file } = JSON.parse(event.body);
 
-        return {
-            statusCode: 200,
+        const API_URL = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`;
+
+        // Xây dựng payload cho Google API
+        let contents = [{ parts: [] }];
+        if (prompt) {
+            contents[0].parts.push({ text: prompt });
+        }
+        if (file) {
+            // File đã được gửi dưới dạng base64 từ frontend
+            contents[0].parts.push({ inline_data: { mime_type: file.type, data: file.data } });
+        }
+
+        // Gọi đến API của Google từ server của Netlify
+        const geminiResponse = await fetch(API_URL, {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'Access-Control-Allow-Origin': '*', // Cho phép CORS
             },
-            body: JSON.stringify({ response: text }),
+            body: JSON.stringify({ contents })
+        });
+
+        if (!geminiResponse.ok) {
+            const errorData = await geminiResponse.json();
+            console.error("Lỗi từ Google API:", errorData);
+            return {
+                statusCode: geminiResponse.status,
+                body: JSON.stringify({ error: errorData.error.message || "Lỗi không xác định từ Google API." })
+            };
+        }
+
+        const responseData = await geminiResponse.json();
+        
+        // Trả kết quả về cho frontend
+        return {
+            statusCode: 200,
+            body: JSON.stringify(responseData)
         };
+
     } catch (error) {
-        console.error('Lỗi trong Netlify function (chat):', error);
+        console.error("Lỗi trong Netlify function:", error);
         return {
             statusCode: 500,
-            body: JSON.stringify({ error: 'Đã xảy ra lỗi khi kết nối với AI' }),
+            body: JSON.stringify({ error: error.message })
         };
     }
 };
