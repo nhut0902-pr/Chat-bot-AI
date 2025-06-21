@@ -3,69 +3,64 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title> Nhựt Chatbot</title>
+    <title>Gia Sư AI</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body>
-    <div id="app-container">
-        <!-- Bảng Lịch sử Trò chuyện (có thể thu gọn) -->
-        <div id="history-panel">
-            <div class="panel-header">
-                <h3>Lịch sử</h3>
-                <button id="toggle-history-btn" title="Thu gọn/Mở rộng"><i class="fa-solid fa-chevron-left"></i></button>
+    <div class="main-container" id="main-container">
+        <!-- CỘT BÊN TRÁI - LỊCH SỬ CHAT -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <button id="new-chat-btn">➕ Cuộc trò chuyện mới</button>
             </div>
-            <button id="new-chat-btn"><i class="fa-solid fa-plus"></i> Trò chuyện mới</button>
-            <div id="history-list">
-                <!-- Lịch sử sẽ được thêm vào đây bằng JS -->
-            </div>
-        </div>
+            <nav class="history-nav">
+                <ul id="chat-history-list"></ul>
+            </nav>
+        </aside>
 
-        <!-- Khung Chat chính -->
-        <div id="chat-container">
-            <header id="chat-header">
-                <h2>Gemini 1.5 Flash</h2>
-                <div>
-                    <label for="tts-toggle" class="tts-label">Đọc câu trả lời:</label>
-                    <input type="checkbox" id="tts-toggle" checked>
+        <!-- NÚT GẠT SIDEBAR -->
+        <button id="sidebar-toggle" title="Ẩn/Hiện Lịch sử">
+            <span class="arrow"><</span>
+        </button>
+
+        <!-- KHUNG CHAT CHÍNH -->
+        <main class="chat-container">
+            <header>
+                <div class="header-content">
+                    <h1>Gia Sư AI 🧠</h1>
+                    <p>Trợ lý học tập cá nhân của bạn</p>
+                </div>
+                <div class="header-controls">
+                    <label class="theme-switch" for="theme-toggle" title="Chuyển chế độ Sáng/Tối">
+                        <input type="checkbox" id="theme-toggle">
+                        <span class="slider"></span>
+                    </label>
                 </div>
             </header>
-            <div id="chat-box">
-                <!-- Tin nhắn sẽ hiển thị ở đây -->
-                <div class="message bot">Chào bạn! Tôi có thể giúp gì cho bạn hôm nay? Bạn có thể hỏi tôi, gửi ảnh, hoặc yêu cầu tìm kiếm trên web.</div>
-            </div>
-            <div id="loading-indicator" class="hidden">
-                <div class="spinner"></div>
-            </div>
             
-            <!-- Vùng xem trước ảnh và video -->
-            <div id="media-preview-area" class="hidden">
-                <div id="image-preview-container">
-                    <img id="image-preview" src="" alt="Image preview">
-                    <button id="remove-image-btn">×</button>
+            <div class="chat-box" id="chat-box"></div>
+
+            <div class="chat-input-area">
+                <div class="input-wrapper">
+                    <input type="file" id="file-input" accept="image/*" style="display: none;">
+                    <label for="file-input" class="icon-button" title="Tải ảnh lên">📎</label>
+                    <button id="search-btn" class="icon-button" title="Tìm kiếm trên Web & Tóm tắt">🌐</button>
+                    <textarea id="prompt-input" placeholder="Hỏi Gia Sư AI bất cứ điều gì..." rows="1"></textarea>
+                    <button id="send-btn" class="icon-button send-button" title="Gửi">➤</button>
                 </div>
-                <div id="video-feed-container" class="hidden">
-                    <video id="video-feed" autoplay playsinline></video>
-                    <button id="capture-btn">Chụp ảnh</button>
-                    <button id="cancel-camera-btn">Hủy</button>
+                <div class="file-preview" id="file-preview">
+                    <span id="file-name"></span>
+                    <button id="remove-file-btn" style="display: none;">×</button>
                 </div>
             </div>
-            
-            <div id="chat-input-area">
-                <button id="camera-btn" title="Gửi ảnh"><i class="fa-solid fa-camera"></i></button>
-                <button id="mic-btn" title="Nói chuyện"><i class="fa-solid fa-microphone"></i></button>
-                <textarea id="user-input" placeholder="Nhập tin nhắn hoặc sử dụng mic..." rows="1"></textarea>
-                <button id="send-btn" title="Gửi"><i class="fa-solid fa-paper-plane"></i></button>
-                <button id="web-search-btn" title="Tìm kiếm trên Web"><i class="fa-solid fa-globe"></i></button>
-            </div>
-        </div>
+
+            <footer>
+                <p>Powered by Nhut0902</p>
+            </footer>
+        </main>
     </div>
 
-    <!-- Canvas ẩn để xử lý ảnh chụp từ camera -->
-    <canvas id="canvas" class="hidden"></canvas>
-
-    <!-- Thư viện để render Markdown -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
