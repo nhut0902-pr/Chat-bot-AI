@@ -197,3 +197,58 @@ footer {
     text-align: center; padding: 8px; font-size: 0.8em;
     color: #999; background-color: var(--main-bg-color);
 }
+/* ... (Toàn bộ CSS từ phiên bản trước giữ nguyên) ... */
+
+/* Thêm style mới ở cuối file */
+
+/* Nút Micro */
+#mic-btn.recording {
+    color: #ff4d4d; /* Màu đỏ khi đang ghi âm */
+    animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+    100% { transform: scale(1); }
+}
+
+/* Nút Loa (Text-to-Speech) */
+.tts-button {
+    background: none; border: none; cursor: pointer;
+    font-size: 16px; color: var(--text-color);
+    opacity: 0.6; transition: opacity 0.2s;
+    margin-left: 10px;
+    vertical-align: middle;
+}
+.ai-message:hover .tts-button { opacity: 1; }
+.tts-button.speaking { color: var(--header-bg-color); }
+
+/* Các nút công cụ */
+.tool-buttons {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+.tool-btn {
+    background-color: var(--ai-bubble-bg);
+    border: 1px solid var(--border-color);
+    color: var(--text-color);
+    padding: 8px 12px;
+    border-radius: 15px;
+    cursor: pointer;
+    font-size: 0.9em;
+    transition: background-color 0.2s, transform 0.1s;
+}
+.tool-btn:hover {
+    background-color: var(--sidebar-bg-color);
+}
+.tool-btn:active {
+    transform: scale(0.95);
+}
+
+.chat-input-area {
+    /* Điều chỉnh lại để chứa các nút công cụ */
+    padding: 10px 20px;
+}
