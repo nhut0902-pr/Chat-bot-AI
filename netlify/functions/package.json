@@ -1,11 +1,10 @@
 {
-  "name": "gia-su-ai",
-  "version": "1.0.0",
-  "description": "Một trợ lý học tập AI sử dụng Gemini 1.5 Flash và Netlify Functions.",
-  "main": "index.html",
-  "scripts": {
-    "dev": "netlify dev"
-  },
-  "author": "Nhut0902",
-  "license": "MIT"
+  "dependencies": {
+    "@google/generative-ai": "^0.2.1",
+    "axios": "^1.6.8",
+    "cheerio": "^1.0.0-rc.12",
+    "formidable-serverless": "^1.1.1",
+    "pdf-parse": "^1.1.1",
+    "youtube-transcript": "^1.0.6"
+  }
 }
