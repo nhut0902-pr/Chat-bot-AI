@@ -3,66 +3,58 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gia Sư AI</title>
+    <title>Gia sư AI</title>
     <link rel="stylesheet" href="style.css">
-    <!-- Thư viện Frontend -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.102/pdf.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.5.1/mammoth.browser.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
 </head>
 <body>
-    <div class="main-container" id="main-container">
-        <!-- Sidebar giữ nguyên -->
-        <aside class="sidebar" id="sidebar">
-            <div class="sidebar-header">
-                <button id="new-chat-btn">➕ Cuộc trò chuyện mới</button>
+    <div class="chatbot-container">
+        <div class="header">
+            <h2>Gia sư AI</h2>
+            <p>Hỏi đáp mọi thắc mắc học tập</p>
+        </div>
+
+        <div class="knowledge-source-area">
+            <h4>Cung cấp kiến thức cho Gia sư:</h4>
+            <div class="source-input">
+                <i class="fab fa-youtube"></i>
+                <input type="text" id="youtube-url-input" placeholder="Dán link bài giảng YouTube...">
+                <button id="process-youtube-btn">Xử lý</button>
             </div>
-            <nav class="history-nav">
-                <ul id="chat-history-list"></ul>
-            </nav>
-        </aside>
-        <button id="sidebar-toggle" title="Ẩn/Hiện Lịch sử"><span class="arrow"><</span></button>
-
-        <!-- Khung chat chính -->
-        <main class="chat-container">
-            <header>
-                <!-- Header giữ nguyên -->
-                <div class="header-content"><h1>Gia Sư AI 🧠</h1><p>Trợ lý học tập cá nhân của bạn</p></div>
-                <div class="header-controls"><label class="theme-switch" for="theme-toggle" title="Chuyển chế độ Sáng/Tối"><input type="checkbox" id="theme-toggle"><span class="slider"></span></label></div>
-            </header>
-            
-            <div class="chat-box" id="chat-box"></div>
-
-            <div class="chat-input-area">
-                 <div class="file-preview" id="file-preview">
-                    <span id="file-name"></span>
-                    <button id="remove-file-btn" style="display: none;">×</button>
-                </div>
-                <!-- Các nút công cụ chuyên dụng -->
-                <div class="tool-buttons" id="tool-buttons" style="display: none;">
-                    <button class="tool-btn" data-task="summarize">📄 Tóm tắt</button>
-                    <button class="tool-btn" data-task="quiz">❓ Tạo câu hỏi</button>
-                    <button class="tool-btn" data-task="keywords">🔑 Tìm từ khóa</button>
-                </div>
-
-                <div class="input-wrapper">
-                    <!-- Chấp nhận nhiều loại file hơn -->
-                    <input type="file" id="file-input" accept="image/*,application/pdf,.docx" style="display: none;">
-                    <label for="file-input" class="icon-button" title="Tải Ảnh/PDF/DOCX">📎</label>
-                    <button id="mic-btn" class="icon-button" title="Nhập bằng giọng nói">🎤</button>
-                    <textarea id="prompt-input" placeholder="Hỏi Gia Sư AI hoặc tải tài liệu..." rows="1"></textarea>
-                    <button id="send-btn" class="icon-button send-button" title="Gửi">➤</button>
-                </div>
+            <div class="source-input">
+                <i class="fas fa-globe"></i>
+                <input type="text" id="website-url-input" placeholder="Dán link bài báo, Wikipedia...">
+                <button id="process-website-btn">Xử lý</button>
             </div>
+            <div class="source-input">
+                <i class="fas fa-file-pdf"></i>
+                <label for="pdf-file-input" class="file-label">Chọn file PDF...</label>
+                <input type="file" id="pdf-file-input" accept=".pdf" style="display: none;">
+            </div>
+            <p id="knowledge-status" class="status-text">Chưa có kiến thức nền. Hãy cung cấp link hoặc file.</p>
+        </div>
+        
+        <div id="chat-box" class="chat-box">
+            <!-- Tin nhắn sẽ được thêm vào đây bằng JavaScript -->
+        </div>
+        
+        <div class="tutor-actions">
+            <button id="summarize-btn" disabled><i class="fas fa-compress-alt"></i> Tóm tắt</button>
+            <button id="quiz-btn" disabled><i class="fas fa-question-circle"></i> Tạo Quiz</button>
+        </div>
 
-            <footer><p>Powered by Nhut0902</p></footer>
-        </main>
+        <div class="chat-input-area">
+            <form id="chat-form">
+                <input type="text" id="user-input" placeholder="Đặt câu hỏi cho gia sư..." autocomplete="off">
+                <button type="submit"><i class="fas fa-paper-plane"></i></button>
+            </form>
+        </div>
+
+        <div class="footer">
+            <p>Powered by Nhut0902</p>
+        </div>
     </div>
 
-    <!-- Cấu hình worker cho pdf.js -->
-    <script>
-      pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.102/pdf.worker.min.js`;
-    </script>
     <script src="script.js"></script>
 </body>
 </html>
