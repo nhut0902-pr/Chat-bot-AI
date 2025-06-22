@@ -1,14 +1,17 @@
 # netlify.toml
 
-# Cài đặt xây dựng cơ bản
+# Cấu hình Build
 [build]
-  # Thư mục chứa các file HTML, CSS, JS tĩnh để publish
-  publish = "." 
-  # Thư mục chứa các serverless functions
+  # Thư mục chứa các serverless function của bạn.
+  # Netlify sẽ tự động tìm và build các file JavaScript trong này.
   functions = "netlify/functions"
 
-# Cài đặt chuyển hướng (không cần thiết cho dự án này nhưng nên biết)
-# [[redirects]]
-#   from = "/old-path"
-#   to = "/new-path"
-#   status = 301
+# Cấu hình chuyển hướng (Redirects and Rewrites)
+# Đây là phần rất quan trọng cho các ứng dụng trang đơn (Single Page Application - SPA)
+[[redirects]]
+  # Chuyển hướng tất cả các yêu cầu không khớp (ví dụ: khi người dùng F5 trang)
+  from = "/*"
+  # Về lại file index.html để ứng dụng JavaScript có thể xử lý routing.
+  to = "/index.html"
+  # Mã trạng thái 200 có nghĩa là "OK" và nó sẽ không thay đổi URL trên trình duyệt.
+  status = 200
