@@ -1,11 +1,15 @@
-// netlify/functions/getYoutubeTranscript.js
-// const { YoutubeTranscript } = require('youtube-transcript');
+const { YoutubeTranscript } = require('youtube-transcript');
 
-// exports.handler = async function(event) {
-//     // 1. Lấy link YouTube từ event.body
-//     // 2. Dùng YoutubeTranscript.fetchTranscript(youtubeLink) để lấy transcript
-//     // 3. Xây dựng prompt: `Tóm tắt nội dung bài giảng sau đây: ${transcript}`
-//     // 4. Gọi API Gemini với prompt trên
-//     // 5. Trả về kết quả tóm tắt cho frontend
-//     return { statusCode: 501, body: JSON.stringify({ error: "Tính năng đang được phát triển." }) };
-// };
+exports.handler = async (event) => {
+    try {
+        const { url } = JSON.parse(event.body);
+        const transcriptData = await YoutubeTranscript.fetchTranscript(url);
+        const fullTranscript = transcriptData.map(item => item.text).join(' ');
+        return {
+            statusCode: 200,
+            body: JSON.stringify({ content: fullTranscript }),
+        };
+    } catch (error) {
+        return { statusCode: 500, body: JSON.stringify({ error: 'Không thể lấy phụ đề. Video có thể không có phụ đề hoặc link không hợp lệ.' })};
+    }
+};
