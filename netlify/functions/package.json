@@ -1,6 +1,14 @@
 {
+  "name": "chat-bot-ai",
+  "version": "1.0.0",
+  "description": "Gia su AI powered by Gemini",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "nhut0902-pr",
+  "license": "ISC",
   "dependencies": {
-    "@google/generative-ai": "^0.2.1",
+    "@google/generative-ai": "^0.7.1",
     "axios": "^1.6.8",
     "cheerio": "^1.0.0-rc.12",
     "formidable-serverless": "^1.1.1",
