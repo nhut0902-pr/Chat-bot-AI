@@ -4,7 +4,7 @@ const axios = require('axios');
 // Khởi tạo model với API Key từ biến môi trường
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-// --- ĐỊNH NGHĨA CÁC CÔNG CỤ (TOOLS) ---
+// --- ĐỊNH NGHĨA CÁC CÔNG CỤ (TOOLS) THEO ĐỊNH DẠNG MỚI ---
 const tools = [{
   functionDeclarations: [
     {
@@ -25,7 +25,7 @@ const tools = [{
   ],
 }];
 
-// --- HÀM THỰC THI CÔNG CỤ TƯƠNG ỨNG ---
+// --- CÁC HÀM THỰC THI CÔNG CỤ TƯƠNG ỨNG ---
 const functionExecutors = {
   web_search: async ({ query }) => {
     try {
@@ -33,15 +33,18 @@ const functionExecutors = {
       if (!apiKey) {
         throw new Error("SERPER_API_KEY chưa được thiết lập trên Netlify.");
       }
+      // Gọi đến API của Serper.dev
       const response = await axios.post('https://google.serper.dev/search', 
         { q: query },
         { headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' } }
       );
+      // Xử lý và chỉ lấy 3 kết quả đầu tiên cho ngắn gọn
       const usefulResults = response.data.organic.slice(0, 3).map(item => ({
         title: item.title,
         snippet: item.snippet,
         link: item.link
       }));
+      // Trả về một đối tượng JSON để Gemini đọc và tổng hợp
       return { results: usefulResults };
     } catch (error) {
       console.error("Lỗi khi gọi Serper API:", error.response ? error.response.data : error.message);
@@ -66,7 +69,7 @@ exports.handler = async (event) => {
         const { history, action, context } = JSON.parse(event.body);
 
         if (!action || !action.message) {
-            throw new Error("Hành động hoặc tin nhắn không hợp lệ.");
+            throw new Error("Yêu cầu không hợp lệ. Thiếu 'action' hoặc 'message'.");
         }
 
         // --- BỘ LỌC LỊCH SỬ CHAT AN TOÀN ---
@@ -74,14 +77,11 @@ exports.handler = async (event) => {
         if (Array.isArray(history)) {
             let lastRole = null;
             history.forEach(h => {
-                // Chỉ thêm vào nếu role, parts, và text tồn tại
                 if (h.role && h.parts && h.parts[0]?.text) {
-                     // Đảm bảo không có 2 role giống nhau liên tiếp (trừ function)
                     if (h.role !== lastRole || h.role === 'function') {
                         conversationHistory.push(h);
                         lastRole = h.role;
                     } else if (h.role === 'user') {
-                        // Nếu user theo sau user, ghi đè tin nhắn cuối để sửa lỗi
                         conversationHistory.pop();
                         conversationHistory.push(h);
                     }
@@ -109,16 +109,12 @@ exports.handler = async (event) => {
         });
 
         const response = result.response;
+        const responseText = response.text();
 
-        // Xử lý Function Calling (phần này vẫn đang được đơn giản hóa)
-        const functionCalls = response.functionCalls();
-        if (functionCalls && functionCalls.length > 0) {
-            // Logic xử lý gọi hàm sẽ cần phức tạp hơn với một vòng lặp,
-            // nhưng với prompt "Hãy tìm kiếm...", Gemini thường sẽ tự xử lý.
-            // Nếu cần, chúng ta sẽ nâng cấp phần này sau.
-        }
-
-        return { statusCode: 200, body: JSON.stringify({ response: response.text() }) };
+        // Phần xử lý Function Calling phức tạp hơn có thể được thêm vào đây nếu cần,
+        // nhưng với prompt "Hãy tìm kiếm...", Gemini thường sẽ tự xử lý.
+        
+        return { statusCode: 200, body: JSON.stringify({ response: responseText }) };
 
     } catch (error) {
         console.error('LỖI TRONG HANDLER callGemini:', error);
