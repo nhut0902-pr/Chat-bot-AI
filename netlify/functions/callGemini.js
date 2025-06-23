@@ -1,7 +1,12 @@
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
-const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro-latest' });
+
+// --- THAY ĐỔI DUY NHẤT Ở ĐÂY ---
+// Chuyển từ "gemini-1.5-pro-latest" sang "gemini-1.5-flash-latest"
+// Model này nhanh hơn, tiết kiệm quota hơn, và vẫn rất mạnh mẽ.
+const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+// ---------------------------------
 
 exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') {
@@ -13,17 +18,13 @@ exports.handler = async (event) => {
 
         let finalPrompt;
         let result;
-        // Lấy lịch sử thô, bỏ tin nhắn cuối của user nếu là chat
         const rawHistory = promptType === 'chat' ? history.slice(0, -1) : history;
 
-        // --- BỘ LỌC BẢO VỆ MỚI ---
-        // SỬA LỖI: Đảm bảo lịch sử chat gửi đến API luôn bắt đầu bằng vai trò 'user'
         const firstUserIndex = rawHistory.findIndex(msg => msg.role === 'user');
         const chatHistoryForModel = firstUserIndex === -1 ? [] : rawHistory.slice(firstUserIndex);
-        // -----------------------------
 
         const chat = model.startChat({
-            history: chatHistoryForModel, // Dùng lịch sử đã được lọc
+            history: chatHistoryForModel,
             generationConfig: { maxOutputTokens: 2000 },
         });
 
@@ -45,7 +46,6 @@ exports.handler = async (event) => {
             
             case 'chat':
             default:
-                // Lấy tin nhắn cuối cùng từ history gốc (đã bao gồm tin nhắn mới nhất của user)
                 const lastUserMessage = history[history.length - 1].parts[0].text;
                 if (context) {
                     finalPrompt = `Dựa vào ngữ cảnh sau: "${context}".\n\nHãy trả lời câu hỏi của người dùng một cách thân thiện và chính xác: "${lastUserMessage}"`;
