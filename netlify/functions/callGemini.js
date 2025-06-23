@@ -1,11 +1,9 @@
-// netlify/functions/callGemini.js
-
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 const axios = require('axios');
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-// --- ĐỊNH NGHĨA CÁC CÔNG CỤ (TOOLS) ---
+// --- ĐỊNH NGHĨA TOOLS ---
 const tools = [
   {
     functionDeclarations: [
@@ -17,77 +15,84 @@ const tools = [
           properties: {
             query: {
               type: 'STRING',
-              description: 'Chuỗi truy vấn tìm kiếm, ví dụ: "kết quả bóng đá hôm qua"',
+              description: 'Chuỗi truy vấn tìm kiếm, ví dụ: "giá vàng hôm nay"',
             },
           },
           required: ['query'],
         },
       },
-      // Bạn vẫn có thể giữ công cụ get_current_weather ở đây
+      // Bạn có thể thêm các tool khác ở đây, ví dụ get_current_weather
     ],
   },
 ];
 
-// --- HÀM THỰC THI CÔNG CỤ ---
+// --- HÀM THỰC THI TOOLS ---
 const functionExecutors = {
   web_search: async ({ query }) => {
     try {
-      console.log(`Đang thực hiện tìm kiếm với truy vấn: ${query}`);
       const apiKey = process.env.SERPER_API_KEY;
-      const response = await axios.post('https://google.serper.dev/search', {
-        q: query,
-      }, {
-        headers: {
-          'X-API-KEY': apiKey,
-          'Content-Type': 'application/json',
-        },
-      });
-
-      // Lấy các kết quả tìm kiếm hữu ích (tiêu đề, link, đoạn trích)
+      const response = await axios.post('https://google.serper.dev/search', 
+        { q: query },
+        { headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' } }
+      );
       const usefulResults = response.data.organic.slice(0, 5).map(item => ({
         title: item.title,
         snippet: item.snippet,
       }));
-
-      console.log("Kết quả tìm kiếm đã được xử lý:", usefulResults);
-      // Trả về một đối tượng JSON chứa các kết quả đã được tóm tắt
       return { results: usefulResults };
-
     } catch (error) {
-      console.error("Lỗi khi gọi Serper API:", error);
+      console.error("Lỗi khi gọi Serper API:", error.response ? error.response.data : error.message);
       return { error: 'Không thể thực hiện tìm kiếm trên web.' };
     }
   },
-  // Hàm get_current_weather của bạn ở đây...
 };
 
-// Gắn tools vào model
 const model = genAI.getGenerativeModel({
   model: 'gemini-1.5-flash-latest',
   tools: tools,
 });
 
-// --- PHẦN exports.handler ---
-// Luồng xử lý exports.handler sẽ tương tự như luồng xử lý thời tiết
-// Nó sẽ kiểm tra functionCalls, tìm đúng executor là 'web_search' và chạy nó
-// Sau đó gửi kết quả từ Serper API ngược lại cho Gemini để tổng hợp câu trả lời.
-
+// --- HÀM HANDLER CHÍNH ---
 exports.handler = async (event) => {
+    if (event.httpMethod !== 'POST') {
+        return { statusCode: 405, body: 'Method Not Allowed' };
+    }
     try {
         const { history } = JSON.parse(event.body);
-        const lastUserMessage = history[history.length - 1];
-        const chatHistoryForModel = history.slice(0, -1);
 
+        // --- BỘ LỌC LỊCH SỬ CHAT HOÀN CHỈNH ---
+        // 1. Loại bỏ các tin nhắn không hợp lệ (không có parts hoặc parts rỗng)
+        let validHistory = history.filter(msg => msg.parts && msg.parts.length > 0 && msg.parts[0].text);
+
+        // 2. Tìm index của tin nhắn 'user' đầu tiên
+        const firstUserIndex = validHistory.findIndex(msg => msg.role === 'user');
+        
+        // 3. Nếu không có tin 'user' nào, chỉ lấy tin nhắn cuối cùng (nếu có) để làm prompt
+        if (firstUserIndex === -1) {
+            const lastMessage = validHistory.length > 0 ? validHistory[validHistory.length - 1].parts[0].text : "Xin chào";
+            const result = await model.generateContent(lastMessage);
+            return { statusCode: 200, body: JSON.stringify({ response: result.response.text() }) };
+        }
+
+        // 4. Cắt lịch sử để đảm bảo nó bắt đầu bằng 'user'
+        const chatHistoryForModel = validHistory.slice(firstUserIndex);
+        
+        // 5. Lấy tin nhắn cuối cùng của người dùng để gửi
+        const lastUserMessage = chatHistoryForModel.pop(); // Lấy và xóa phần tử cuối
+
+        // --- BẮT ĐẦU PHIÊN CHAT VỚI LỊCH SỬ SẠCH ---
         const chat = model.startChat({
             history: chatHistoryForModel,
         });
 
         const result = await chat.sendMessage(lastUserMessage.parts[0].text);
-        const response = result.response;
+        let response = result.response;
 
-        const functionCalls = response.functionCalls();
-        if (functionCalls && functionCalls.length > 0) {
+        // --- XỬ LÝ FUNCTION CALLING ---
+        let functionCalls = response.functionCalls();
+        while (functionCalls && functionCalls.length > 0) {
             const call = functionCalls[0];
+            console.log(`Yêu cầu gọi hàm: ${call.name} với tham số:`, call.args);
             const executor = functionExecutors[call.name];
             if (executor) {
                 const apiResponse = await executor(call.args);
@@ -99,8 +104,11 @@ exports.handler = async (event) => {
                         },
                     },
                 ]);
-                const finalResponseText = result2.response.text();
-                return { statusCode: 200, body: JSON.stringify({ response: finalResponseText }) };
+                response = result2.response;
+                functionCalls = response.functionCalls(); // Kiểm tra lại xem có yêu cầu gọi hàm lồng nhau không
+            } else {
+                console.warn(`Không tìm thấy hàm thực thi cho: ${call.name}`);
+                break; // Thoát vòng lặp nếu không có hàm thực thi
             }
         }
         
@@ -108,7 +116,10 @@ exports.handler = async (event) => {
         return { statusCode: 200, body: JSON.stringify({ response: responseText }) };
 
     } catch (error) {
-        console.error('Lỗi trong function callGemini:', error);
-        return { statusCode: 500, body: JSON.stringify({ error: `Lỗi từ server: ${error.message}` }) };
+        console.error('!!! LỖI NGHIÊM TRỌNG TRONG FUNCTION callGemini:', error);
+        return {
+            statusCode: 500,
+            body: JSON.stringify({ error: `Lỗi từ server: ${error.message}` }),
+        };
     }
 };
