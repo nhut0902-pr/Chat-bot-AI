@@ -27,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const renderDashboard = () => {
         historyList.innerHTML = '';
+        // Sắp xếp để chat mới nhất lên đầu
         Object.keys(allChats).sort((a, b) => b - a).forEach(chatId => {
             const historyItem = document.createElement('div');
             historyItem.classList.add('history-item');
@@ -49,25 +50,33 @@ document.addEventListener('DOMContentLoaded', () => {
         const storedChats = localStorage.getItem('allGiaSuAIChats');
         if (storedChats) {
             allChats = JSON.parse(storedChats);
-            // Lấy chat gần nhất làm active chat
             activeChatId = Object.keys(allChats).sort((a, b) => b - a)[0] || null;
         }
     };
     
     const loadChat = (chatId) => {
+        if (!allChats[chatId]) return;
         activeChatId = chatId;
         chatBox.innerHTML = '';
-        allChats[activeChatId].forEach(msg => addMessageToBox(msg.role, msg.parts[0].text, false));
+        if (allChats[activeChatId].length === 0) {
+            // Nếu là chat mới chưa có tin nhắn, hiển thị lại lời chào
+             addMessageToBox('model', "Chào bạn! Tôi là Gia sư AI. Hãy bắt đầu một chủ đề mới nhé!", false);
+        } else {
+             allChats[activeChatId].forEach(msg => addMessageToBox(msg.role, msg.parts[0].text, false));
+        }
         renderDashboard();
     };
 
     const startNewChat = () => {
         const newChatId = Date.now().toString();
-        const welcomeMessage = "Chào bạn! Tôi là Gia sư AI. Hãy bắt đầu một chủ đề mới nhé!";
-        allChats[newChatId] = [{ role: 'model', parts: [{ text: welcomeMessage }] }];
+        // SỬA LỖI: Bắt đầu với một mảng lịch sử rỗng.
+        allChats[newChatId] = [];
         activeChatId = newChatId;
+        
+        // Chỉ hiển thị tin nhắn chào mừng trên giao diện, không lưu vào state lịch sử
         chatBox.innerHTML = '';
-        addMessageToBox('model', welcomeMessage, false);
+        addMessageToBox('model', "Chào bạn! Tôi là Gia sư AI. Hãy bắt đầu một chủ đề mới nhé!", false); // isNew = false
+
         saveChatsToStorage();
         renderDashboard();
     };
@@ -82,11 +91,11 @@ document.addEventListener('DOMContentLoaded', () => {
         chatBox.appendChild(messageElement);
         chatBox.scrollTop = chatBox.scrollHeight;
 
-        if (isNew && activeChatId) {
+        if (isNew && activeChatId && allChats[activeChatId]) {
             allChats[activeChatId].push({ role: sender, parts: [{ text: text }] });
             saveChatsToStorage();
-            // Cập nhật tiêu đề trên dashboard nếu đây là tin nhắn đầu tiên
-            if (allChats[activeChatId].filter(m => m.role === 'user').length === 1) {
+            // Cập nhật tiêu đề trên dashboard nếu đây là tin nhắn đầu tiên của user
+            if (sender === 'user' && allChats[activeChatId].filter(m => m.role === 'user').length === 1) {
                 renderDashboard();
             }
         }
@@ -115,14 +124,19 @@ document.addEventListener('DOMContentLoaded', () => {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload),
             });
-            if (!response.ok) throw new Error(`Lỗi server: ${response.statusText}`);
-            
+
             const data = await response.json();
+            if (!response.ok) {
+                 // Ném lỗi với thông điệp từ server để khối catch xử lý
+                throw new Error(data.error || `Lỗi server: ${response.statusText}`);
+            }
+            
             addMessageToBox('model', data.response);
 
         } catch (error) {
             console.error('Lỗi khi gọi Gemini:', error);
-            addMessageToBox('model', 'Xin lỗi, tôi đang gặp sự cố. Vui lòng thử lại sau.');
+            // Hiển thị lỗi thực tế cho người dùng (hoặc một phiên bản đơn giản hơn)
+            addMessageToBox('model', `Xin lỗi, có lỗi xảy ra: ${error.message}`);
         }
     };
     
@@ -135,13 +149,8 @@ document.addEventListener('DOMContentLoaded', () => {
         const rect = canvas.getBoundingClientRect();
         const x = e.clientX ? e.clientX - rect.left : e.touches[0].clientX - rect.left;
         const y = e.clientY ? e.clientY - rect.top : e.touches[0].clientY - rect.top;
-        ctx.lineWidth = 3;
-        ctx.lineCap = 'round';
-        ctx.strokeStyle = '#333';
-        ctx.lineTo(x, y);
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.moveTo(x, y);
+        ctx.lineWidth = 3; ctx.lineCap = 'round'; ctx.strokeStyle = '#333';
+        ctx.lineTo(x, y); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x, y);
     };
 
     // --- EVENT LISTENERS ---
@@ -175,7 +184,7 @@ document.addEventListener('DOMContentLoaded', () => {
         getBotResponse({
             history: allChats[activeChatId],
             promptType: 'web_search',
-            message: userMessage, // Gửi message riêng để biết cần tìm gì
+            message: userMessage,
         });
         userInput.value = '';
     });
@@ -187,25 +196,20 @@ document.addEventListener('DOMContentLoaded', () => {
     canvas.addEventListener('mousedown', startPosition);
     canvas.addEventListener('mouseup', endPosition);
     canvas.addEventListener('mousemove', draw);
-    // Touch events for mobile
     canvas.addEventListener('touchstart', startPosition);
     canvas.addEventListener('touchend', endPosition);
     canvas.addEventListener('touchmove', draw);
 
-
     sendDrawingBtn.addEventListener('click', () => {
         const userMessage = userInput.value.trim() || "Hãy phân tích hình ảnh này.";
         const imageData = canvas.toDataURL('image/jpeg');
-        
         addMessageToBox('user', `${userMessage} <br> <img src="${imageData}" width="150" alt="Bản vẽ của người dùng">`);
-        
         getBotResponse({
             history: allChats[activeChatId],
             promptType: 'image_chat',
             message: userMessage,
-            imageData: imageData.split(',')[1], // Chỉ gửi dữ liệu base64
+            imageData: imageData.split(',')[1],
         });
-        
         userInput.value = '';
         canvasModal.style.display = 'none';
         ctx.clearRect(0, 0, canvas.width, canvas.height);
@@ -213,7 +217,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // --- INITIALIZATION ---
     loadChatsFromStorage();
-    if (activeChatId) {
+    if (activeChatId && allChats[activeChatId]) {
         loadChat(activeChatId);
     } else {
         startNewChat();
