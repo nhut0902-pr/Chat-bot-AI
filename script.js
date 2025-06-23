@@ -7,64 +7,42 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatBox = document.getElementById('chat-box');
     const chatForm = document.getElementById('chat-form');
     const userInput = document.getElementById('user-input');
-    const sendChatBtn = document.getElementById('send-chat-btn');
-    const generateImageBtn = document.getElementById('generate-image-btn');
-
-    // Canvas Elements
-    const canvasModal = document.getElementById('canvas-modal');
-    const openCanvasBtn = document.getElementById('open-canvas-btn');
-    const closeCanvasBtn = document.querySelector('.modal .close-btn');
-    const canvas = document.getElementById('drawing-canvas');
-    const ctx = canvas.getContext('2d');
-    const clearCanvasBtn = document.getElementById('clear-canvas-btn');
-    const sendDrawingBtn = document.getElementById('send-drawing-btn');
+    const sendBtn = document.getElementById('send-btn');
+    const toolSelector = document.querySelector('.tool-selector');
     
-    // Voice Mode Elements
-    const voiceModeBtn = document.getElementById('voice-mode-btn');
+    // (Các DOM elements khác như Canvas có thể thêm vào đây nếu bạn giữ lại chúng)
 
     // State Management
     let allChats = {};
     let activeChatId = null;
+    let activeTool = 'chat'; // Công cụ mặc định là trò chuyện
 
-    // --- VOICE MODE SETUP ---
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recognition = null;
-    let isRecording = false;
-    let synth = window.speechSynthesis;
+    // --- TOOL SELECTOR LOGIC ---
+    toolSelector.addEventListener('click', (e) => {
+        const clickedButton = e.target.closest('.tool-btn');
+        if (!clickedButton) return;
 
-    if (SpeechRecognition) {
-        recognition = new SpeechRecognition();
-        recognition.continuous = false;
-        recognition.lang = 'vi-VN';
-        recognition.interimResults = false;
-        recognition.maxAlternatives = 1;
+        // Cập nhật giao diện nút
+        document.querySelectorAll('.tool-btn').forEach(btn => btn.classList.remove('active'));
+        clickedButton.classList.add('active');
+        
+        // Cập nhật state và placeholder
+        activeTool = clickedButton.dataset.tool;
+        updatePlaceholder();
+    });
 
-        recognition.onresult = (event) => {
-            userInput.value = event.results[0][0].transcript;
-            stopRecording();
-            sendChatBtn.click(); // Tự động gửi tin nhắn chat sau khi nói xong
-        };
-        recognition.onerror = (event) => {
-            console.error("Lỗi nhận dạng giọng nói:", event.error);
-            stopRecording();
-        };
-        recognition.onend = () => {
-            if (isRecording) stopRecording();
-        };
-    } else {
-        voiceModeBtn.style.display = 'none';
-    }
-
-    const startRecording = () => { if (recognition) { isRecording = true; voiceModeBtn.classList.add('recording'); recognition.start(); }};
-    const stopRecording = () => { if (recognition) { isRecording = false; voiceModeBtn.classList.remove('recording'); recognition.stop(); }};
-    const speak = (text) => {
-        if (synth.speaking) { synth.cancel(); }
-        if (text) {
-            const cleanText = text.replace(/[*#`~]/g, '');
-            const utterThis = new SpeechSynthesisUtterance(cleanText);
-            utterThis.lang = 'vi-VN';
-            utterThis.onerror = (e) => console.error('Lỗi SpeechSynthesis:', e);
-            synth.speak(utterThis);
+    const updatePlaceholder = () => {
+        switch (activeTool) {
+            case 'web_search':
+                userInput.placeholder = "Nhập nội dung cần tìm kiếm trên web...";
+                break;
+            case 'image_generation':
+                userInput.placeholder = "Mô tả hình ảnh bạn muốn tạo...";
+                break;
+            case 'chat':
+            default:
+                userInput.placeholder = "Đặt câu hỏi cho gia sư...";
+                break;
         }
     };
 
@@ -75,7 +53,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const historyItem = document.createElement('div');
             historyItem.classList.add('history-item');
             if (chatId === activeChatId) historyItem.classList.add('active');
-            const firstUserMessage = allChats[chatId].find(m => m.role === 'user');
+            const firstUserMessage = allChats[chatId]?.find(m => m.role === 'user');
             historyItem.textContent = firstUserMessage ? firstUserMessage.parts[0].text : 'Trò chuyện mới';
             historyItem.dataset.chatId = chatId;
             historyList.appendChild(historyItem);
@@ -94,10 +72,10 @@ document.addEventListener('DOMContentLoaded', () => {
     const loadChat = (chatId) => {
         activeChatId = chatId;
         chatBox.innerHTML = '';
-        if (allChats[activeChatId]?.length === 0) {
-            addMessageToBox('model', "Chào bạn! Tôi là Gia sư AI. Hãy bắt đầu một chủ đề mới nhé!", false);
+        if (!allChats[activeChatId] || allChats[activeChatId].length === 0) {
+            addMessageToBox('model', "Chào bạn! Tôi là Gia sư AI. Hãy chọn một công cụ và bắt đầu nhé!", false);
         } else {
-            allChats[activeChatId]?.forEach(msg => addMessageToBox(msg.role, msg.parts[0].text, false));
+            allChats[activeChatId].forEach(msg => addMessageToBox(msg.role, msg.parts[0].text, false));
         }
         renderDashboard();
     };
@@ -107,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
         allChats[newChatId] = [];
         activeChatId = newChatId;
         chatBox.innerHTML = '';
-        addMessageToBox('model', "Chào bạn! Tôi là Gia sư AI. Hãy bắt đầu một chủ đề mới nhé!", false);
+        addMessageToBox('model', "Chào bạn! Tôi là Gia sư AI. Hãy chọn một công cụ và bắt đầu nhé!", false);
         saveChatsToStorage();
         renderDashboard();
     };
@@ -120,10 +98,8 @@ document.addEventListener('DOMContentLoaded', () => {
         messageElement.innerHTML = text.replace(/\n/g, '<br>');
         chatBox.appendChild(messageElement);
         chatBox.scrollTop = chatBox.scrollHeight;
-
-        if (sender === 'model' && !text.includes('<img')) speak(text);
         
-        if (isNew && activeChatId && allChats[activeChatId]) {
+        if (isNew && activeChatId && allChats[activeChatId] !== undefined) {
             allChats[activeChatId].push({ role: sender, parts: [{ text: text }] });
             saveChatsToStorage();
             if (sender === 'user' && allChats[activeChatId].filter(m => m.role === 'user').length === 1) {
@@ -132,31 +108,34 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
-    const showTypingIndicator = () => { /* Giữ nguyên hàm này */ };
+    const showTypingIndicator = () => {
+        const indicator = document.createElement('div');
+        indicator.classList.add('message', 'bot-message', 'typing-indicator');
+        indicator.innerHTML = '<span></span><span></span><span></span>';
+        chatBox.appendChild(indicator);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    };
 
     // --- API CALLS ---
-    const getBotResponse = async (userMessage) => {
+    const getBotResponse = async (payload) => {
         if (!activeChatId) { alert("Vui lòng bắt đầu một cuộc trò chuyện mới!"); return; }
-        
-        addMessageToBox('user', userMessage);
         
         showTypingIndicator();
         try {
             const response = await fetch('/.netlify/functions/callGemini', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ history: allChats[activeChatId] }),
+                body: JSON.stringify({ history: allChats[activeChatId], payload }),
             });
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error || "Lỗi không xác định");
+            if (!response.ok) throw new Error(data.error || "Lỗi không xác định từ server");
             addMessageToBox('model', data.response);
         } catch (error) {
-            addMessageToBox('model', `Xin lỗi, có lỗi xảy ra: ${error.message}`);
+            addMessageToBox('model', `Xin lỗi, có lỗi: ${error.message}`);
         }
     };
     
     const generateImage = async (prompt) => {
-        addMessageToBox('user', `[Tạo ảnh]: ${prompt}`);
         showTypingIndicator();
         try {
             const response = await fetch('/.netlify/functions/generateImage', {
@@ -165,14 +144,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 body: JSON.stringify({ prompt }),
             });
             const data = await response.json();
-            if (!response.ok) throw new Error(data.error);
+            if (!response.ok) throw new Error(data.error || "Không thể tạo ảnh");
             addMessageToBox('model', `<img src="${data.imageUrl}" alt="${prompt}" class="generated-image">`);
         } catch (error) {
             addMessageToBox('model', `Xin lỗi, có lỗi khi tạo ảnh: ${error.message}`);
         }
     };
 
-    // --- EVENT LISTENERS ---
+    // --- MAIN EVENT LISTENERS ---
     toggleDashboardBtn.addEventListener('click', () => dashboard.classList.toggle('collapsed'));
     newChatBtn.addEventListener('click', startNewChat);
     historyList.addEventListener('click', (e) => {
@@ -180,38 +159,37 @@ document.addEventListener('DOMContentLoaded', () => {
         if (item?.dataset.chatId) loadChat(item.dataset.chatId);
     });
 
-    sendChatBtn.addEventListener('click', () => {
-        const userMessage = userInput.value.trim();
-        if (!userMessage) return;
-        getBotResponse(userMessage);
-        userInput.value = '';
-    });
-
-    generateImageBtn.addEventListener('click', () => {
-        const prompt = userInput.value.trim();
-        if (!prompt) return;
-        generateImage(prompt);
-        userInput.value = '';
-    });
-    
     chatForm.addEventListener('submit', (e) => {
         e.preventDefault();
-        sendChatBtn.click();
-    });
+        const userMessage = userInput.value.trim();
+        if (!userMessage) return;
 
-    voiceModeBtn.addEventListener('click', () => {
-        if (synth.speaking) synth.cancel(); // Dừng đọc nếu đang đọc
-        if (!isRecording) startRecording();
-        else stopRecording();
+        // Dựa vào công cụ đang active để quyết định hành động
+        switch (activeTool) {
+            case 'web_search':
+                addMessageToBox('user', `[Tìm kiếm]: ${userMessage}`);
+                getBotResponse({ type: 'web_search', message: userMessage });
+                break;
+            case 'image_generation':
+                addMessageToBox('user', `[Tạo ảnh]: ${userMessage}`);
+                generateImage(userMessage);
+                break;
+            case 'chat':
+            default:
+                addMessageToBox('user', userMessage);
+                // Với chat thông thường, không cần gửi type
+                getBotResponse({ type: 'chat', message: userMessage });
+                break;
+        }
+        userInput.value = '';
     });
-
-    // Canvas Events... (giữ nguyên logic canvas)
 
     // --- INITIALIZATION ---
     loadChatsFromStorage();
-    if (activeChatId && allChats[activeChatId]) {
+    if (activeChatId && allChats[activeChatId] !== undefined) {
         loadChat(activeChatId);
     } else {
         startNewChat();
     }
+    updatePlaceholder(); // Cập nhật placeholder lần đầu
 });
