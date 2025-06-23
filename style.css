@@ -21,175 +21,52 @@ body {
     border-right: 1px solid #ddd;
     display: flex;
     flex-direction: column;
-    flex-shrink: 0; /* Ngăn không cho dashboard bị co lại */
+    flex-shrink: 0;
     transition: margin-left 0.3s ease-in-out;
 }
-
-/* SỬA LỖI: Thêm class .collapsed */
 .dashboard.collapsed {
     margin-left: -280px;
 }
-
-.dashboard-header {
-    padding: 15px;
-    border-bottom: 1px solid #ddd;
-}
-.dashboard-header h3 {
-    margin: 0 0 15px 0;
-}
-#new-chat-btn {
-    width: 100%;
-    padding: 10px;
-    background-color: #007bff;
-    color: white;
-    border: none;
-    border-radius: 5px;
-    cursor: pointer;
-    font-weight: bold;
-}
-.history-list {
-    flex-grow: 1;
-    overflow-y: auto;
-}
-.history-item {
-    padding: 15px;
-    border-bottom: 1px solid #eee;
-    cursor: pointer;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-.history-item:hover {
-    background-color: #e9ecef;
-}
-.history-item.active {
-    background-color: #ddeaff;
-    font-weight: bold;
-}
+.dashboard-header { padding: 15px; border-bottom: 1px solid #ddd; }
+.dashboard-header h3 { margin: 0 0 15px 0; }
+#new-chat-btn { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+.history-list { flex-grow: 1; overflow-y: auto; }
+.history-item { padding: 15px; border-bottom: 1px solid #eee; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.history-item:hover { background-color: #e9ecef; }
+.history-item.active { background-color: #ddeaff; font-weight: bold; }
 
 /* Chatbot Container */
-.chatbot-container {
-    flex-grow: 1;
-    display: flex;
-    flex-direction: column;
-    background-color: #fff;
-    min-width: 0; /* Quan trọng để flexbox hoạt động đúng */
-}
-
-.header {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-    background: linear-gradient(135deg, #007bff, #0056b3);
-    color: white;
-    padding: 10px 20px;
-    flex-shrink: 0;
-}
-#toggle-dashboard-btn {
-    background: none;
-    border: none;
-    color: white;
-    font-size: 1.5em;
-    cursor: pointer;
-}
+.chatbot-container { flex-grow: 1; display: flex; flex-direction: column; background-color: #fff; min-width: 0; }
+.header { display: flex; align-items: center; gap: 15px; background: linear-gradient(135deg, #007bff, #0056b3); color: white; padding: 10px 20px; flex-shrink: 0; }
+#toggle-dashboard-btn { background: none; border: none; color: white; font-size: 1.5em; cursor: pointer; }
 .header-title h2 { margin: 0; font-size: 1.3em; }
 .header-title p { margin: 2px 0 0; font-size: 0.8em; opacity: 0.9; }
 
-.chat-box {
-    flex-grow: 1;
-    padding: 20px;
-    overflow-y: auto;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
+/* Chat Box */
+.chat-box { flex-grow: 1; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.message { max-width: 80%; padding: 10px 15px; border-radius: 18px; line-height: 1.5; word-wrap: break-word; }
+.user-message { background-color: #007bff; color: white; align-self: flex-end; border-bottom-right-radius: 4px; }
+.bot-message { background-color: #e9e9eb; color: #333; align-self: flex-start; border-bottom-left-radius: 4px; }
+.bot-message img.generated-image, .user-message img { max-width: 100%; border-radius: 10px; margin-top: 10px; border: 1px solid #ddd; }
 
-.message {
-    max-width: 80%;
-    padding: 10px 15px;
-    border-radius: 18px;
-    line-height: 1.5;
-    word-wrap: break-word;
-}
-.user-message {
-    background-color: #007bff;
-    color: white;
-    align-self: flex-end;
-    border-bottom-right-radius: 4px;
-}
-.bot-message {
-    background-color: #e9e9eb;
-    color: #333;
-    align-self: flex-start;
-    border-bottom-left-radius: 4px;
-}
-.bot-message img { max-width: 100%; border-radius: 10px; margin-top: 10px; }
-
-
-/* SỬA LỖI & THÊM HIỆU ỨNG: Nút Thinking */
-.typing-indicator {
-    padding: 15px;
-}
-.typing-indicator span {
-    height: 10px;
-    width: 10px;
-    background-color: #999;
-    border-radius: 50%;
-    display: inline-block;
-    margin: 0 2px;
-    animation: bounce 1.4s infinite ease-in-out both;
-}
+/* Typing Indicator */
+.typing-indicator { padding: 15px; }
+.typing-indicator span { height: 10px; width: 10px; background-color: #999; border-radius: 50%; display: inline-block; margin: 0 2px; animation: bounce 1.4s infinite ease-in-out both; }
 .typing-indicator span:nth-of-type(1) { animation-delay: -0.32s; }
 .typing-indicator span:nth-of-type(2) { animation-delay: -0.16s; }
-@keyframes bounce {
-    0%, 80%, 100% { transform: scale(0); }
-    40% { transform: scale(1.0); }
-}
+@keyframes bounce { 0%, 80%, 100% { transform: scale(0); } 40% { transform: scale(1.0); } }
 
-/* SỬA LỖI: Layout cho Input Area và các nút */
-.chat-input-area {
-    display: flex;
-    align-items: center;
-    padding: 10px 15px;
-    border-top: 1px solid #ddd;
-    gap: 10px;
-    flex-shrink: 0;
-}
-#chat-form {
-    flex-grow: 1;
-    display: flex;
-    background-color: #f0f2f5;
-    border-radius: 25px;
-    padding: 5px;
-}
-#user-input {
-    flex-grow: 1;
-    padding: 10px 15px;
-    border: none;
-    background-color: transparent;
-    outline: none;
-    font-size: 1em;
-}
-.input-action-btn, .send-btn {
-    background: none;
-    border: none;
-    font-size: 1.3em;
-    cursor: pointer;
-    color: #555;
-    padding: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-.send-btn {
-    background-color: #007bff;
-    color: white;
-    border-radius: 50%;
-    margin: 2px;
-}
-.input-action-btn:hover, .send-btn:hover {
-    opacity: 0.8;
-}
+/* Chat Input Area */
+.chat-input-area { display: flex; align-items: center; padding: 10px 15px; border-top: 1px solid #ddd; gap: 10px; flex-shrink: 0; }
+#chat-form { flex-grow: 1; display: flex; align-items: center; background-color: #f0f2f5; border-radius: 25px; padding: 0 5px 0 15px; }
+#user-input { flex-grow: 1; padding: 12px 0; border: none; background-color: transparent; outline: none; font-size: 1em; }
+.input-action-btn, .send-btn { background: none; border: none; font-size: 1.3em; cursor: pointer; color: #555; padding: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.send-btn { margin-left: 5px; }
+.input-action-btn:hover, .send-btn:hover { color: #007bff; }
+
+/* Voice Mode Recording Style */
+#voice-mode-btn.recording { color: #dc3545; animation: pulse 1.5s infinite; }
+@keyframes pulse { 0% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.2); opacity: 0.7; } 100% { transform: scale(1); opacity: 1; } }
 
 /* Canvas Modal */
 .modal { display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0,0,0,0.5); }
@@ -197,5 +74,7 @@ body {
 #drawing-canvas { border: 1px solid #ccc; cursor: crosshair; display: block; margin: 0 auto; }
 .canvas-actions { margin-top: 15px; display: flex; justify-content: flex-end; gap: 10px; }
 .close-btn { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
+
+/* Footer */
 .footer { padding: 10px; text-align: center; border-top: 1px solid #eee; background-color: #f9f9f9; flex-shrink: 0; }
 .footer p { margin: 0; font-size: 0.8em; color: #888; }
