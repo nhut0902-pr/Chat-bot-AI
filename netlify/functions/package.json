@@ -1,7 +1,7 @@
 {
-  "name": "chat-bot-ai",
+  "name": "gia-su-ai-nhut0902",
   "version": "1.0.0",
-  "description": "Gia su AI powered by Gemini",
+  "description": "Chatbot AI Project",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
