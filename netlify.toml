@@ -4,7 +4,7 @@
 [build]
   functions = "netlify/functions"
 
-# Cấu hình chuyển hướng (Redirects and Rewrites)
+# Cấu hình chuyển hướng cho ứng dụng trang đơn (SPA)
 [[redirects]]
   from = "/*"
   to = "/index.html"
@@ -12,4 +12,4 @@
 
 # Plugin đặc biệt để tự động cài đặt dependencies cho Functions
 [[plugins]]
-package = "@netlify/plugin-functions-install-core"
+  package = "@netlify/plugin-functions-install-core"
