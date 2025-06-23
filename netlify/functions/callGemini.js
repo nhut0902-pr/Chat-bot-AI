@@ -3,7 +3,6 @@ const axios = require('axios');
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-// --- SỬA LỖI ĐỊNH NGHĨA TOOLS THEO ĐỊNH DẠNG MỚI ---
 const tools = {
   functionDeclarations: [
     {
@@ -11,20 +10,13 @@ const tools = {
       description: 'Tìm kiếm trên internet để lấy thông tin mới nhất hoặc các sự kiện gần đây.',
       parameters: {
         type: 'OBJECT',
-        properties: {
-          query: {
-            type: 'STRING',
-            description: 'Chuỗi truy vấn tìm kiếm, ví dụ: "giá vàng hôm nay"',
-          },
-        },
+        properties: { query: { type: 'STRING', description: 'Chuỗi truy vấn tìm kiếm' } },
         required: ['query'],
       },
     },
-    // Bạn có thể thêm các function declaration khác ở đây
   ],
 };
 
-// --- HÀM THỰC THI TOOLS ---
 const functionExecutors = {
   web_search: async ({ query }) => {
     try {
@@ -42,47 +34,52 @@ const functionExecutors = {
       return { results: usefulResults };
     } catch (error) {
       console.error("Lỗi khi gọi Serper API:", error.response ? error.response.data : error.message);
-      return { error: 'Không thể thực hiện tìm kiếm trên web.' };
+      return { error: 'Không thể thực hiện tìm kiếm.' };
     }
   },
 };
 
-// Khởi tạo model và "gắn" các công cụ vào
-const model = genAI.getGenerativeModel({
+// --- SỬA LỖI LOGIC TÌM KIẾM ---
+// Tạo 2 model khác nhau: một cho chat thường, một ÉP BUỘC phải dùng tool
+const generativeModel = genAI.getGenerativeModel({ model: 'gemini-1.5-flash-latest' });
+const toolModel = genAI.getGenerativeModel({
   model: 'gemini-1.5-flash-latest',
-  tools: [tools], // Gửi tools dưới dạng một mảng chứa đối tượng tools
+  tools: [tools],
+  // Ép buộc model phải chọn một tool để trả lời
+  toolConfig: { functionCallingConfig: { mode: "ANY" } }
 });
 
-// --- HÀM HANDLER CHÍNH ---
 exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') return { statusCode: 405 };
     try {
         const { history, action, context } = JSON.parse(event.body);
-
         if (!action || !action.message) throw new Error("Yêu cầu không hợp lệ.");
 
         let chatHistoryForModel = [];
         if (Array.isArray(history)) {
             const validHistory = history.filter(h => h.role && h.parts && h.parts[0]?.text);
             const firstUserIndex = validHistory.findIndex(h => h.role === 'user');
-            if (firstUserIndex > -1) {
-                chatHistoryForModel = validHistory.slice(firstUserIndex);
+            if (firstUserIndex > -1) chatHistoryForModel = validHistory.slice(firstUserIndex);
+        }
+
+        let modelToUse;
+        let finalPrompt = action.message;
+
+        // Chọn model và prompt dựa trên hành động của người dùng
+        if (action.type === 'web_search') {
+            modelToUse = toolModel; // Dùng model được ép buộc sử dụng tool
+            // Prompt không cần thêm gì, vì model sẽ tự hiểu cần gọi tool `web_search`
+        } else {
+            modelToUse = generativeModel; // Dùng model chat thường
+            if (context) {
+                finalPrompt = `Dựa vào ngữ cảnh sau: "${context}".\n\nHãy trả lời: "${action.message}"`;
             }
         }
-
-        const chat = model.startChat({ history: chatHistoryForModel });
         
-        let finalPrompt = action.message;
-        if (context) {
-            finalPrompt = `Dựa vào ngữ cảnh sau đây: "${context}".\n\nHãy trả lời câu hỏi: "${action.message}"`;
-        } else if (action.type === 'web_search') {
-            finalPrompt = `Hãy tìm kiếm trên web và trả lời câu hỏi sau: "${action.message}"`;
-        }
-
+        const chat = modelToUse.startChat({ history: chatHistoryForModel });
         const result = await chat.sendMessage(finalPrompt);
         let response = result.response;
 
-        // Xử lý Function Calling
         const functionCalls = response.functionCalls();
         if (functionCalls && functionCalls.length > 0) {
             const call = functionCalls[0];
