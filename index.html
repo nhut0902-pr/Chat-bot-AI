@@ -11,37 +11,45 @@
     <div class="app-container">
         <!-- Dashboard Lịch sử Chat -->
         <div id="dashboard" class="dashboard">
-             <!-- ... (giữ nguyên dashboard) ... -->
+            <div class="dashboard-header">
+                <h3>Lịch sử Chat</h3>
+                <button id="new-chat-btn"><i class="fas fa-plus"></i> Chat Mới</button>
+            </div>
+            <div id="history-list" class="history-list"></div>
         </div>
 
         <!-- Container chính của Chatbot -->
         <div class="chatbot-container">
             <div class="header">
-                <!-- ... (giữ nguyên header) ... -->
+                <button id="toggle-dashboard-btn"><i class="fas fa-bars"></i></button>
+                <div class="header-title">
+                    <h2>Gia sư AI</h2>
+                    <p>Hỏi đáp, Tìm kiếm, Sáng tạo</p>
+                </div>
             </div>
 
             <div id="chat-box" class="chat-box">
-                <!-- Tin nhắn sẽ được thêm vào đây -->
-            </div>
-            
-            <!-- TOOL SELECTOR MỚI -->
-            <div class="tool-selector">
-                <button class="tool-btn active" data-tool="chat" title="Trò chuyện thông thường">
-                    <i class="fas fa-comments"></i> Trò chuyện
-                </button>
-                <button class="tool-btn" data-tool="web_search" title="Tìm kiếm thông tin mới nhất trên web">
-                    <i class="fas fa-search"></i> Tìm kiếm
-                </button>
-                <button class="tool-btn" data-tool="image_generation" title="Biến văn bản thành hình ảnh">
-                    <i class="fas fa-image"></i> Tạo ảnh
-                </button>
+                 <!-- Tin nhắn chào mừng sẽ được thêm ở đây -->
             </div>
 
+            <div class="tool-selector">
+                <button class="tool-btn active" data-tool="chat"><i class="fas fa-comments"></i> Trò chuyện</button>
+                <button class="tool-btn" data-tool="web_search"><i class="fas fa-search"></i> Tìm kiếm</button>
+                <button class="tool-btn" data-tool="image_generation"><i class="fas fa-image"></i> Tạo ảnh</button>
+            </div>
+            
             <div class="chat-input-area">
+                <!-- NÚT TẢI FILE ĐÃ THÊM LẠI -->
+                <label for="file-input" class="input-action-btn" title="Đính kèm file PDF">
+                    <i class="fas fa-paperclip"></i>
+                </label>
+                <input type="file" id="file-input" accept=".pdf" style="display: none;">
+
                 <form id="chat-form">
                     <input type="text" id="user-input" placeholder="Đặt câu hỏi cho gia sư..." autocomplete="off">
-                    <button type="submit" id="send-btn" class="send-btn" title="Gửi"><i class="fas fa-paper-plane"></i></button>
                 </form>
+
+                <button id="send-btn" class="send-btn" title="Gửi"><i class="fas fa-paper-plane"></i></button>
             </div>
         </div>
     </div>
