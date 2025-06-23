@@ -3,16 +3,57 @@ const axios = require('axios');
 
 const genAI = new GoogleGenerativeAI(process.env.GOOGLE_API_KEY);
 
-// Định nghĩa Tools
-const tools = [{ functionDeclarations: [ /* ... */ ] }];
-// Định nghĩa Function Executors
-const functionExecutors = { /* ... */ };
+// --- SỬA LỖI ĐỊNH NGHĨA TOOLS THEO ĐỊNH DẠNG MỚI ---
+const tools = {
+  functionDeclarations: [
+    {
+      name: 'web_search',
+      description: 'Tìm kiếm trên internet để lấy thông tin mới nhất hoặc các sự kiện gần đây.',
+      parameters: {
+        type: 'OBJECT',
+        properties: {
+          query: {
+            type: 'STRING',
+            description: 'Chuỗi truy vấn tìm kiếm, ví dụ: "giá vàng hôm nay"',
+          },
+        },
+        required: ['query'],
+      },
+    },
+    // Bạn có thể thêm các function declaration khác ở đây
+  ],
+};
 
+// --- HÀM THỰC THI TOOLS ---
+const functionExecutors = {
+  web_search: async ({ query }) => {
+    try {
+      const apiKey = process.env.SERPER_API_KEY;
+      if (!apiKey) throw new Error("SERPER_API_KEY chưa được thiết lập.");
+      const response = await axios.post('https://google.serper.dev/search', 
+        { q: query },
+        { headers: { 'X-API-KEY': apiKey, 'Content-Type': 'application/json' } }
+      );
+      const usefulResults = response.data.organic.slice(0, 3).map(item => ({
+        title: item.title,
+        snippet: item.snippet,
+        link: item.link
+      }));
+      return { results: usefulResults };
+    } catch (error) {
+      console.error("Lỗi khi gọi Serper API:", error.response ? error.response.data : error.message);
+      return { error: 'Không thể thực hiện tìm kiếm trên web.' };
+    }
+  },
+};
+
+// Khởi tạo model và "gắn" các công cụ vào
 const model = genAI.getGenerativeModel({
   model: 'gemini-1.5-flash-latest',
-  tools: tools,
+  tools: [tools], // Gửi tools dưới dạng một mảng chứa đối tượng tools
 });
 
+// --- HÀM HANDLER CHÍNH ---
 exports.handler = async (event) => {
     if (event.httpMethod !== 'POST') return { statusCode: 405 };
     try {
@@ -20,16 +61,10 @@ exports.handler = async (event) => {
 
         if (!action || !action.message) throw new Error("Yêu cầu không hợp lệ.");
 
-        // --- LOGIC XỬ LÝ LỊCH SỬ DỨT KHOÁT ---
-        // 1. Luôn bắt đầu với mảng lịch sử sạch
         let chatHistoryForModel = [];
-        // 2. Chỉ xử lý history nếu nó tồn tại và là một mảng
         if (Array.isArray(history)) {
-            // 3. Lọc ra các phần tử hợp lệ
             const validHistory = history.filter(h => h.role && h.parts && h.parts[0]?.text);
-            // 4. Tìm vị trí tin nhắn user đầu tiên
             const firstUserIndex = validHistory.findIndex(h => h.role === 'user');
-            // 5. Nếu tìm thấy, cắt mảng từ đó. Nếu không, history vẫn là mảng rỗng.
             if (firstUserIndex > -1) {
                 chatHistoryForModel = validHistory.slice(firstUserIndex);
             }
@@ -37,7 +72,6 @@ exports.handler = async (event) => {
 
         const chat = model.startChat({ history: chatHistoryForModel });
         
-        // Xây dựng prompt cuối cùng
         let finalPrompt = action.message;
         if (context) {
             finalPrompt = `Dựa vào ngữ cảnh sau đây: "${context}".\n\nHãy trả lời câu hỏi: "${action.message}"`;
@@ -51,7 +85,15 @@ exports.handler = async (event) => {
         // Xử lý Function Calling
         const functionCalls = response.functionCalls();
         if (functionCalls && functionCalls.length > 0) {
-            // ... (giữ nguyên logic xử lý function calling)
+            const call = functionCalls[0];
+            const executor = functionExecutors[call.name];
+            if (executor) {
+                const apiResponse = await executor(call.args);
+                const result2 = await chat.sendMessage([{
+                    functionResponse: { name: call.name, response: apiResponse },
+                }]);
+                response = result2.response;
+            }
         }
         
         return { statusCode: 200, body: JSON.stringify({ response: response.text() }) };
@@ -60,5 +102,3 @@ exports.handler = async (event) => {
         return { statusCode: 500, body: JSON.stringify({ error: `[Lỗi Gemini]: ${error.message}` }) };
     }
 };
-
-// Bạn copy lại định nghĩa tools và executors từ phiên bản trước
