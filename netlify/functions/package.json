@@ -1,7 +1,7 @@
 {
   "name": "gia-su-ai-nhut0902",
   "version": "1.0.0",
-  "description": "Chatbot AI Project",
+  "description": "Chatbot AI Project with Voice and Image Generation",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -11,6 +11,7 @@
     "@google/generative-ai": "^0.7.1",
     "axios": "^1.6.8",
     "cheerio": "^1.0.0-rc.12",
+    "form-data": "^4.0.0",
     "formidable-serverless": "^1.1.1",
     "pdf-parse": "^1.1.1",
     "youtube-transcript": "^1.0.6"
